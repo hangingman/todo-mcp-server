@@ -1,157 +1,214 @@
 #!/usr/bin/env node
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+    ListResourcesRequestSchema,
+    ReadResourceRequestSchema,
+    ListToolsRequestSchema,
+    CallToolRequestSchema,
+    ErrorCode,
+    McpError,
+} from "@modelcontextprotocol/sdk/types.js";
+import { TodoCore } from "./todo-core.js";
 
-import { program } from "commander";
-import inquirer from "inquirer";
-import fs from "fs-extra";
-import path from "path";
-import { v4 as uuidv4 } from "uuid";
+class TodoServer {
+    private server: Server;
 
-const TODO_FILE = path.join(
-  process.env.HOME || process.env.USERPROFILE || "",
-  "todo.txt"
-);
+    constructor() {
+        this.server = new Server(
+            {
+                name: "todo-server",
+                version: "0.1.0",
+            },
+            {
+                capabilities: {
+                    resources: {},
+                    tools: {},
+                },
+            }
+        );
 
-interface Todo {
-  text: string;
-  date: string;
-  id: string;
-  completed: boolean;
+        this.setupHandlers();
+        this.setupErrorHandling();
+    }
+
+    private setupErrorHandling(): void {
+        this.server.onerror = (error) => {
+            console.error("[MCP Error]", error);
+        };
+
+        process.on("SIGINT", async () => {
+            await this.server.close();
+            process.exit(0);
+        });
+    }
+
+    private setupHandlers(): void {
+        this.setupResourceHandlers();
+        this.setupToolHandlers();
+    }
+
+    private setupResourceHandlers(): void {
+        this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+            resources: [
+                {
+                    uri: "todo://tasks",
+                    name: "Todo Tasks",
+                    mimeType: "application/json",
+                    description: "List of all todo tasks",
+                },
+            ],
+        }));
+
+        this.server.setRequestHandler(
+            ReadResourceRequestSchema,
+            async (request) => {
+                if (request.params.uri !== "todo://tasks") {
+                    throw new McpError(
+                        ErrorCode.InvalidRequest,
+                        `Unknown resource: ${request.params.uri}`
+                    );
+                }
+
+                const todos = await TodoCore.listTasks(true);
+                return {
+                    contents: [
+                        {
+                            uri: request.params.uri,
+                            mimeType: "application/json",
+                            text: JSON.stringify(todos, null, 2),
+                        },
+                    ],
+                };
+            }
+        );
+    }
+
+    private setupToolHandlers(): void {
+        this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+            tools: [
+                {
+                    name: "todo_init",
+                    description: "Initialize the todo file",
+                    inputSchema: {
+                        type: "object",
+                        properties: {},
+                        required: []
+                    }
+                },
+                {
+                    name: "todo_add_task",
+                    description: "Add a new todo task",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            task: {
+                                type: "string",
+                                description: "Task description"
+                            }
+                        },
+                        required: ["task"]
+                    }
+                },
+                {
+                    name: "todo_mark_done",
+                    description: "Mark tasks as done",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            taskIds: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                },
+                                description: "Array of task IDs to mark as done"
+                            }
+                        },
+                        required: ["taskIds"]
+                    }
+                },
+                {
+                    name: "todo_list_tasks",
+                    description: "List tasks",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            showCompleted: {
+                                type: "boolean",
+                                description: "Whether to include completed tasks",
+                                default: false
+                            }
+                        }
+                    }
+                }
+            ]
+        }));
+
+        this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+            switch (request.params.name) {
+                case "todo_init":
+                    await TodoCore.init();
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Todo file initialized successfully"
+                        }]
+                    };
+
+                case "todo_add_task": {
+                    const { task } = request.params.arguments as { task: string };
+                    if (typeof task !== "string") {
+                        throw new McpError(ErrorCode.InvalidParams, "Invalid task argument");
+                    }
+                    await TodoCore.addTask(task);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Task added successfully"
+                        }]
+                    };
+                }
+
+                case "todo_mark_done": {
+                    const { taskIds } = request.params.arguments as { taskIds: string[] };
+                    if (!Array.isArray(taskIds)) {
+                        throw new McpError(ErrorCode.InvalidParams, "Invalid taskIds argument");
+                    }
+                    await TodoCore.markTasksDone(taskIds);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Tasks marked as done successfully"
+                        }]
+                    };
+                }
+
+                case "todo_list_tasks": {
+                    const { showCompleted = false } = request.params.arguments as { showCompleted?: boolean };
+                    const tasks = await TodoCore.listTasks(showCompleted);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: JSON.stringify(tasks, null, 2)
+                        }]
+                    };
+                }
+
+                default:
+                    throw new McpError(
+                        ErrorCode.MethodNotFound,
+                        `Unknown tool: ${request.params.name}`
+                    );
+            }
+        });
+    }
+
+    async run(): Promise<void> {
+        const transport = new StdioServerTransport();
+        await this.server.connect(transport);
+        console.error("Todo MCP server running on stdio");
+    }
 }
 
-program.version("0.1.0").description("A simple CLI todo app");
-
-program
-  .command("init")
-  .description("Initialize the todo file")
-  .action(async () => {
-    try {
-      await fs.access(TODO_FILE);
-      console.log("Todo file already exists.");
-    } catch {
-      await fs.writeFile(TODO_FILE, "");
-      console.log("Todo file created successfully.");
-    }
-  });
-
-program
-  .command("add <task>")
-  .description("Add a new task")
-  .action(async (task: string) => {
-    const todo: Todo = {
-      text: task,
-      date: new Date().toISOString().split("T")[0],
-      id: uuidv4(),
-      completed: false,
-    };
-    const todoString = `- [ ] ${todo.text} ${todo.date} ${todo.id}\n`;
-    await fs.ensureFile(TODO_FILE);
-    const content = await fs.readFile(TODO_FILE, "utf-8");
-    await fs.writeFile(TODO_FILE, todoString + content);
-    console.log("Task added successfully.");
-  });
-
-program
-  .command("done")
-  .alias("d")
-  .description("Mark tasks as done")
-  .action(async () => {
-    const content = await fs.readFile(TODO_FILE, "utf-8");
-    const todos = content
-      .split("\n")
-      .filter((line) => line.trim() !== "")
-      .map(parseTodoLine);
-    const uncompletedTodos = todos.filter((todo) => !todo.completed);
-
-    if (uncompletedTodos.length === 0) {
-      console.log("No uncompleted tasks.");
-      return;
-    }
-
-    const { selectedTasks } = await inquirer
-      .prompt([
-        {
-          type: "checkbox",
-          name: "selectedTasks",
-          message:
-            "Select tasks to mark as done. If you want cancel this mode, please press <Ctrl + c> :",
-          choices: uncompletedTodos.map((todo) => ({
-            name: todo.text,
-            value: todo.id,
-          })),
-        },
-      ])
-      .catch(() => ({ selectedTasks: [] }));
-
-    if (selectedTasks.length === 0) {
-      console.log("No tasks selected.");
-      return;
-    }
-
-    const updatedTodos = todos.map((todo) => {
-      if (selectedTasks.includes(todo.id)) {
-        return { ...todo, completed: true };
-      }
-      return todo;
-    });
-
-    await fs.writeFile(TODO_FILE, updatedTodos.map(formatTodoLine).join("\n"));
-    console.log("Tasks marked as done.");
-  });
-
-program
-  .command("list")
-  .alias("l")
-  .description("List uncompleted tasks")
-  .action(async () => {
-    const content = await fs.readFile(TODO_FILE, "utf-8");
-    const todos = content
-      .split("\n")
-      .filter((line) => line.trim() !== "")
-      .map(parseTodoLine);
-    const uncompletedTodos = todos.filter((todo) => !todo.completed);
-    if (uncompletedTodos.length === 0) {
-      console.log("No uncompleted tasks.");
-      return;
-    }
-    uncompletedTodos.forEach((todo) =>
-      console.log(`${todo.text} (${todo.date}) [${todo.id}]`)
-    );
-  });
-
-program
-  .command("list-all")
-  .alias("la")
-  .description("List all tasks")
-  .action(async () => {
-    const content = await fs.readFile(TODO_FILE, "utf-8");
-    const todos = content
-      .split("\n")
-      .filter((line) => line.trim() !== "")
-      .map(parseTodoLine);
-    todos.forEach((todo) =>
-      console.log(
-        `${todo.completed ? "✓" : "☐"} ${todo.text} (${todo.date}) [${todo.id}]`
-      )
-    );
-  });
-
-function parseTodoLine(line: string): Todo {
-  const match = line.match(/- \[([ x])\] (.+) (\d{4}-\d{2}-\d{2}) (.+)/);
-  if (match) {
-    return {
-      completed: match[1] === "x",
-      text: match[2],
-      date: match[3],
-      id: match[4],
-    };
-  }
-  throw new Error(`Invalid todo line: ${line}`);
-}
-
-function formatTodoLine(todo: Todo): string {
-  return `- [${todo.completed ? "x" : " "}] ${todo.text} ${todo.date} ${
-    todo.id
-  }`;
-}
-
-program.parse(process.argv);
+const server = new TodoServer();
+server.run().catch(console.error);
