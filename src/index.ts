@@ -105,6 +105,11 @@ class TodoServer {
                             task: {
                                 type: "string",
                                 description: "Task description"
+                            },
+                            priority: {
+                                type: "string",
+                                description: "Task priority (A-Z)",
+                                pattern: "^[A-Z]$"
                             }
                         },
                         required: ["task"]
@@ -156,11 +161,14 @@ class TodoServer {
                     };
 
                 case "todo_add_task": {
-                    const { task } = request.params.arguments as { task: string };
+                    const { task, priority } = request.params.arguments as { task: string; priority?: string };
                     if (typeof task !== "string") {
                         throw new McpError(ErrorCode.InvalidParams, "Invalid task argument");
                     }
-                    await TodoCore.addTask(task);
+                    if (priority && !/^[A-Z]$/.test(priority)) {
+                        throw new McpError(ErrorCode.InvalidParams, "Priority must be a single uppercase letter A-Z");
+                    }
+                    await TodoCore.addTask(task, priority);
                     return {
                         content: [{
                             type: "text",

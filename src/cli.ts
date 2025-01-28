@@ -14,8 +14,9 @@ program
 program
     .command("add <task>")
     .description("Add a new task")
-    .action(async (task: string) => {
-        await TodoCore.addTask(task);
+    .option("-p, --priority <priority>", "Set priority (A-Z)")
+    .action(async (task: string, options: { priority?: string }) => {
+        await TodoCore.addTask(task, options.priority);
         console.log("Task added successfully.");
     });
 
@@ -38,7 +39,7 @@ program
                     message:
                         "Select tasks to mark as done. If you want cancel this mode, please press <Ctrl + c> :",
                     choices: todos.map((todo) => ({
-                        name: todo.text,
+                        name: `${todo.priority ? `(${todo.priority}) ` : ''}${todo.text}`,
                         value: todo.id,
                     })),
                 },
@@ -65,7 +66,7 @@ program
             return;
         }
         todos.forEach((todo) =>
-            console.log(`${todo.text} (${todo.date}) [${todo.id}]`)
+            console.log(`${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} (${todo.date}) [${todo.id}]`)
         );
     });
 
@@ -77,7 +78,7 @@ program
         const todos = await TodoCore.listTasks(true);
         todos.forEach((todo) =>
             console.log(
-                `${todo.completed ? "✓" : "☐"} ${todo.text} (${todo.date}) [${todo.id}]`
+                `${todo.completed ? "✓" : "☐"} ${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} (${todo.date}) [${todo.id}]`
             )
         );
     });
