@@ -145,6 +145,32 @@ class TodoServer {
                             }
                         }
                     }
+                },
+                {
+                    name: "todo_delete_tasks",
+                    description: "Delete specific tasks",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            taskIds: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                },
+                                description: "Array of task IDs to delete"
+                            }
+                        },
+                        required: ["taskIds"]
+                    }
+                },
+                {
+                    name: "todo_delete_all",
+                    description: "Delete all tasks",
+                    inputSchema: {
+                        type: "object",
+                        properties: {},
+                        required: []
+                    }
                 }
             ]
         }));
@@ -198,6 +224,30 @@ class TodoServer {
                         content: [{
                             type: "text",
                             text: JSON.stringify(tasks, null, 2)
+                        }]
+                    };
+                }
+
+                case "todo_delete_tasks": {
+                    const { taskIds } = request.params.arguments as { taskIds: string[] };
+                    if (!Array.isArray(taskIds)) {
+                        throw new McpError(ErrorCode.InvalidParams, "Invalid taskIds argument");
+                    }
+                    await TodoCore.deleteTasks(taskIds);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Tasks deleted successfully"
+                        }]
+                    };
+                }
+
+                case "todo_delete_all": {
+                    await TodoCore.deleteAllTasks();
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "All tasks deleted successfully"
                         }]
                     };
                 }

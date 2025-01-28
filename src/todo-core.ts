@@ -12,7 +12,7 @@ export interface Todo {
   date: string;
   id: string;
   completed: boolean;
-  priority?: string;  // A-Z の文字を格納。オプショナル
+  priority?: string;
 }
 
 export class TodoCore {
@@ -27,7 +27,6 @@ export class TodoCore {
   }
 
   static async addTask(task: string, priority?: string): Promise<void> {
-    // priorityが指定された場合、A-Zの大文字１文字であることを確認
     if (priority && !/^[A-Z]$/.test(priority)) {
       throw new Error("Priority must be a single uppercase letter A-Z");
     }
@@ -70,6 +69,21 @@ export class TodoCore {
       .map(parseTodoLine);
 
     return showCompleted ? todos : todos.filter((todo) => !todo.completed);
+  }
+
+  static async deleteTasks(ids: string[]): Promise<void> {
+    const content = await fs.readFile(TODO_FILE, "utf-8");
+    const todos = content
+      .split("\n")
+      .filter((line) => line.trim() !== "")
+      .map(parseTodoLine);
+
+    const remainingTodos = todos.filter((todo) => !ids.includes(todo.id));
+    await fs.writeFile(TODO_FILE, remainingTodos.map(formatTodoLine).join("\n"));
+  }
+
+  static async deleteAllTasks(): Promise<void> {
+    await fs.writeFile(TODO_FILE, "");
   }
 }
 

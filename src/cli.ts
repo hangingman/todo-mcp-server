@@ -83,4 +83,81 @@ program
         );
     });
 
+program
+    .command("delete")
+    .alias("del")
+    .description("Delete tasks")
+    .action(async () => {
+        const todos = await TodoCore.listTasks(true);
+        if (todos.length === 0) {
+            console.log("No tasks to delete.");
+            return;
+        }
+
+        const { selectedTasks } = await inquirer
+            .prompt([
+                {
+                    type: "checkbox",
+                    name: "selectedTasks",
+                    message: "Select tasks to delete (cannot be undone). Press <Ctrl + c> to cancel:",
+                    choices: todos.map((todo) => ({
+                        name: `${todo.completed ? "✓" : "☐"} ${todo.priority ? `(${todo.priority}) ` : ''}${todo.text}`,
+                        value: todo.id,
+                    })),
+                },
+            ])
+            .catch(() => ({ selectedTasks: [] }));
+
+        if (selectedTasks.length === 0) {
+            console.log("No tasks selected.");
+            return;
+        }
+
+        const { confirm } = await inquirer.prompt([
+            {
+                type: "confirm",
+                name: "confirm",
+                message: `Are you sure you want to delete ${selectedTasks.length} task(s)?`,
+                default: false,
+            },
+        ]);
+
+        if (!confirm) {
+            console.log("Operation cancelled.");
+            return;
+        }
+
+        await TodoCore.deleteTasks(selectedTasks);
+        console.log("Tasks deleted successfully.");
+    });
+
+program
+    .command("delete-all")
+    .alias("da")
+    .description("Delete all tasks")
+    .action(async () => {
+        const todos = await TodoCore.listTasks(true);
+        if (todos.length === 0) {
+            console.log("No tasks to delete.");
+            return;
+        }
+
+        const { confirm } = await inquirer.prompt([
+            {
+                type: "confirm",
+                name: "confirm",
+                message: "Are you sure you want to delete ALL tasks? This cannot be undone!",
+                default: false,
+            },
+        ]);
+
+        if (!confirm) {
+            console.log("Operation cancelled.");
+            return;
+        }
+
+        await TodoCore.deleteAllTasks();
+        console.log("All tasks deleted successfully.");
+    });
+
 program.parse(process.argv);
