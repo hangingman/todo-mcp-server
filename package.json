@@ -1,32 +1,42 @@
 {
-  "name": "todo-cli",
-  "version": "0.1.0",
-  "main": "dist/index.js",
-  "scripts": {
-    "start": "ts-node src/index.ts",
-    "build": "tsc",
-    "todo": "node dist/index.js"
-  },
-  "bin": {
-    "todo": "./dist/index.js"
-  },
-  "keywords": [],
-  "author": "Shumpei0111",
-  "license": "ISC",
-  "description": "A CLI todo app",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.4.1",
-    "@types/node": "^22.10.2",
-    "commander": "^12.1.0",
-    "fs-extra": "^11.2.0",
-    "inquirer": "^12.3.0",
-    "typescript": "^5.7.2",
-    "uuid": "^11.0.3"
-  },
-  "devDependencies": {
-    "@types/fs-extra": "^11.0.4",
-    "@types/inquirer": "^9.0.7",
-    "@types/uuid": "^10.0.0",
-    "ts-node": "^10.9.2"
-  }
+    "name": "todo-mcp-server",
+    "version": "0.1.0",
+    "description": "A Model Context Protocol server for todo management",
+    "private": true,
+    "type": "module",
+    "bin": {
+        "todo-mcp-server": "./build/index.js"
+    },
+    "files": [
+        "build"
+    ],
+    "scripts": {
+        "start": "ts-node src/index.ts",
+        "start:server": "node build/index.js",
+        "start:cli": "node build/cli.js",
+        "prebuild": "mkdir -p build",
+        "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+        "prepare": "npm run build",
+        "watch": "tsc --watch",
+        "inspector": "npx @modelcontextprotocol/inspector build/index.js",
+        "todo": "node build/index.js"
+    },
+    "keywords": [],
+    "author": "Shumpei0111",
+    "license": "ISC",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.4.1",
+        "@types/node": "^22.10.2",
+        "commander": "^12.1.0",
+        "fs-extra": "^11.2.0",
+        "inquirer": "^12.3.0",
+        "typescript": "^5.7.2",
+        "uuid": "^11.0.3"
+    },
+    "devDependencies": {
+        "@types/fs-extra": "^11.0.4",
+        "@types/inquirer": "^9.0.7",
+        "@types/uuid": "^10.0.0",
+        "ts-node": "^10.9.2"
+    }
 }

@@ -1,85 +1,140 @@
 #!/usr/bin/env node
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+    ListResourcesRequestSchema,
+    ReadResourceRequestSchema,
+    ListToolsRequestSchema,
+    CallToolRequestSchema,
+    ErrorCode,
+    McpError,
+} from "@modelcontextprotocol/sdk/types.js";
+import { TodoCore } from "./todo-core.js";
 
-import { program } from "commander";
-import inquirer from "inquirer";
-import { TodoCore } from "./todo-core";
+class TodoServer {
+    private server: Server;
 
-program.version("0.1.0").description("A simple CLI todo app");
+    constructor() {
+        this.server = new Server(
+            {
+                name: "todo-server",
+                version: "0.1.0",
+            },
+            {
+                capabilities: {
+                    resources: {},
+                    tools: {},
+                },
+            }
+        );
 
-program
-  .command("init")
-  .description("Initialize the todo file")
-  .action(() => TodoCore.init());
-
-program
-  .command("add <task>")
-  .description("Add a new task")
-  .action(async (task: string) => {
-    await TodoCore.addTask(task);
-    console.log("Task added successfully.");
-  });
-
-program
-  .command("done")
-  .alias("d")
-  .description("Mark tasks as done")
-  .action(async () => {
-    const todos = await TodoCore.listTasks();
-    if (todos.length === 0) {
-      console.log("No uncompleted tasks.");
-      return;
+        this.setupHandlers();
+        this.setupErrorHandling();
     }
 
-    const { selectedTasks } = await inquirer
-      .prompt([
-        {
-          type: "checkbox",
-          name: "selectedTasks",
-          message:
-            "Select tasks to mark as done. If you want cancel this mode, please press <Ctrl + c> :",
-          choices: todos.map((todo) => ({
-            name: todo.text,
-            value: todo.id,
-          })),
-        },
-      ])
-      .catch(() => ({ selectedTasks: [] }));
+    private setupErrorHandling(): void {
+        this.server.onerror = (error) => {
+            console.error("[MCP Error]", error);
+        };
 
-    if (selectedTasks.length === 0) {
-      console.log("No tasks selected.");
-      return;
+        process.on("SIGINT", async () => {
+            await this.server.close();
+            process.exit(0);
+        });
     }
 
-    await TodoCore.markTasksDone(selectedTasks);
-    console.log("Tasks marked as done.");
-  });
-
-program
-  .command("list")
-  .alias("l")
-  .description("List uncompleted tasks")
-  .action(async () => {
-    const todos = await TodoCore.listTasks();
-    if (todos.length === 0) {
-      console.log("No uncompleted tasks.");
-      return;
+    private setupHandlers(): void {
+        this.setupResourceHandlers();
+        this.setupToolHandlers();
     }
-    todos.forEach((todo) =>
-      console.log(`${todo.text} (${todo.date}) [${todo.id}]`)
-    );
-  });
 
-program
-  .command("list-all")
-  .alias("la")
-  .description("List all tasks")
-  .action(async () => {
-    const todos = await TodoCore.listTasks(true);
-    todos.forEach((todo) =>
-      console.log(
-        `${todo.completed ? "✓" : "☐"} ${todo.text} (${todo.date}) [${todo.id}]`
-      )
-    );
-  });
+    private setupResourceHandlers(): void {
+        this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+            resources: [
+                {
+                    uri: "todo://tasks",
+                    name: "Todo Tasks",
+                    mimeType: "application/json",
+                    description: "List of all todo tasks",
+                },
+            ],
+        }));
 
-program.parse(process.argv);
+        this.server.setRequestHandler(
+            ReadResourceRequestSchema,
+            async (request) => {
+                if (request.params.uri !== "todo://tasks") {
+                    throw new McpError(
+                        ErrorCode.InvalidRequest,
+                        `Unknown resource: ${request.params.uri}`
+                    );
+                }
+
+                const todos = await TodoCore.listTasks(true);
+                return {
+                    contents: [
+                        {
+                            uri: request.params.uri,
+                            mimeType: "application/json",
+                            text: JSON.stringify(todos, null, 2),
+                        },
+                    ],
+                };
+            }
+        );
+    }
+
+    private setupToolHandlers(): void {
+        this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+            tools: [
+                {
+                    name: "add_task",
+                    description: "Add a new todo task",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            task: {
+                                type: "string",
+                                description: "Task description",
+                            },
+                        },
+                        required: ["task"],
+                    },
+                },
+            ],
+        }));
+
+        this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+            if (request.params.name !== "add_task") {
+                throw new McpError(
+                    ErrorCode.MethodNotFound,
+                    `Unknown tool: ${request.params.name}`
+                );
+            }
+
+            const { task } = request.params.arguments as { task: string };
+            if (typeof task !== "string") {
+                throw new McpError(ErrorCode.InvalidParams, "Invalid task argument");
+            }
+
+            await TodoCore.addTask(task);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: "Task added successfully",
+                    },
+                ],
+            };
+        });
+    }
+
+    async run(): Promise<void> {
+        const transport = new StdioServerTransport();
+        await this.server.connect(transport);
+        console.error("Todo MCP server running on stdio");
+    }
+}
+
+const server = new TodoServer();
+server.run().catch(console.error);
