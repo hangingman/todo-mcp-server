@@ -88,44 +88,118 @@ class TodoServer {
         this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
             tools: [
                 {
-                    name: "add_task",
+                    name: "todo_init",
+                    description: "Initialize the todo file",
+                    inputSchema: {
+                        type: "object",
+                        properties: {},
+                        required: []
+                    }
+                },
+                {
+                    name: "todo_add_task",
                     description: "Add a new todo task",
                     inputSchema: {
                         type: "object",
                         properties: {
                             task: {
                                 type: "string",
-                                description: "Task description",
-                            },
+                                description: "Task description"
+                            }
                         },
-                        required: ["task"],
-                    },
+                        required: ["task"]
+                    }
                 },
-            ],
+                {
+                    name: "todo_mark_done",
+                    description: "Mark tasks as done",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            taskIds: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                },
+                                description: "Array of task IDs to mark as done"
+                            }
+                        },
+                        required: ["taskIds"]
+                    }
+                },
+                {
+                    name: "todo_list_tasks",
+                    description: "List tasks",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            showCompleted: {
+                                type: "boolean",
+                                description: "Whether to include completed tasks",
+                                default: false
+                            }
+                        }
+                    }
+                }
+            ]
         }));
 
         this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-            if (request.params.name !== "add_task") {
-                throw new McpError(
-                    ErrorCode.MethodNotFound,
-                    `Unknown tool: ${request.params.name}`
-                );
-            }
+            switch (request.params.name) {
+                case "todo_init":
+                    await TodoCore.init();
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Todo file initialized successfully"
+                        }]
+                    };
 
-            const { task } = request.params.arguments as { task: string };
-            if (typeof task !== "string") {
-                throw new McpError(ErrorCode.InvalidParams, "Invalid task argument");
-            }
+                case "todo_add_task": {
+                    const { task } = request.params.arguments as { task: string };
+                    if (typeof task !== "string") {
+                        throw new McpError(ErrorCode.InvalidParams, "Invalid task argument");
+                    }
+                    await TodoCore.addTask(task);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Task added successfully"
+                        }]
+                    };
+                }
 
-            await TodoCore.addTask(task);
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: "Task added successfully",
-                    },
-                ],
-            };
+                case "todo_mark_done": {
+                    const { taskIds } = request.params.arguments as { taskIds: string[] };
+                    if (!Array.isArray(taskIds)) {
+                        throw new McpError(ErrorCode.InvalidParams, "Invalid taskIds argument");
+                    }
+                    await TodoCore.markTasksDone(taskIds);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Tasks marked as done successfully"
+                        }]
+                    };
+                }
+
+                case "todo_list_tasks": {
+                    const { showCompleted = false } = request.params.arguments as { showCompleted?: boolean };
+                    const tasks = await TodoCore.listTasks(showCompleted);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: JSON.stringify(tasks, null, 2)
+                        }]
+                    };
+                }
+
+                default:
+                    throw new McpError(
+                        ErrorCode.MethodNotFound,
+                        `Unknown tool: ${request.params.name}`
+                    );
+            }
         });
     }
 
