@@ -66,7 +66,9 @@ program
             return;
         }
         todos.forEach((todo) =>
-            console.log(`${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} (${todo.date}) [${todo.id}]`)
+            console.log(
+                `☐ ${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} (${todo.date}) [${todo.id}]`
+            )
         );
     });
 
