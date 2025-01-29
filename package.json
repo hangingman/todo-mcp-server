@@ -12,14 +12,15 @@
     ],
     "scripts": {
         "start": "ts-node src/index.ts",
-        "start:server": "node build/index.js",
-        "start:cli": "node build/cli.js",
-        "prebuild": "mkdir -p build",
-        "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+        "dev": "ts-node src/index.ts",
+        "dev:server": "node build/index.js",
+        "dev:cli": "node build/cli.js",
+        "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755') && require('fs').chmodSync('build/cli.js', '755')\"",
         "prepare": "npm run build",
         "watch": "tsc --watch",
         "inspector": "npx @modelcontextprotocol/inspector build/index.js",
-        "todo": "node build/index.js"
+        "todo": "node build/cli.js",
+        "cli": "node build/cli.js"
     },
     "keywords": [],
     "author": "Shumpei0111",
