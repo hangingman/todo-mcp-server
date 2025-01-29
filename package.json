@@ -27,6 +27,7 @@
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.4.1",
         "@types/node": "^22.10.2",
+        "chalk": "^5.4.1",
         "commander": "^12.1.0",
         "fs-extra": "^11.2.0",
         "inquirer": "^12.3.0",
