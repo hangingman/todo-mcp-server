@@ -1,0 +1,9 @@
+{
+    "loader": "ts-node/esm",
+    "require": [
+        "ts-node/register"
+    ],
+    "extension": [
+        "ts"
+    ]
+}

@@ -21,7 +21,8 @@
         "watch": "tsc --watch",
         "inspector": "npx @modelcontextprotocol/inspector build/index.js",
         "todo": "node build/cli.js",
-        "cli": "node build/cli.js"
+        "cli": "node build/cli.js",
+        "test": "mocha test/**/*.test.ts"
     },
     "keywords": [],
     "author": "Shumpei0111",
@@ -29,17 +30,21 @@
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.4.1",
         "@types/node": "^22.10.2",
+        "chai": "^5.1.2",
         "chalk": "^5.4.1",
         "commander": "^12.1.0",
         "fs-extra": "^11.2.0",
         "inquirer": "^12.3.0",
+        "mocha": "^11.1.0",
         "tspeg": "^3.3.2",
         "typescript": "^5.7.2",
         "uuid": "^11.0.3"
     },
     "devDependencies": {
+        "@types/chai": "^5.0.1",
         "@types/fs-extra": "^11.0.4",
         "@types/inquirer": "^9.0.7",
+        "@types/mocha": "^10.0.10",
         "@types/uuid": "^10.0.0",
         "ts-node": "^10.9.2"
     }
