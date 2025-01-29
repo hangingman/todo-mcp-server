@@ -2,6 +2,7 @@
 
 import { program } from "commander";
 import inquirer from "inquirer";
+import chalk from "chalk";
 import { TodoCore } from "./todo-core.js";
 
 program.version("0.1.0").description("A simple CLI todo app");
@@ -14,9 +15,10 @@ program
 program
     .command("add <task>")
     .description("Add a new task")
-    .action(async (task: string) => {
-        await TodoCore.addTask(task);
-        console.log("Task added successfully.");
+    .option("-p, --priority <priority>", "Set priority (A-Z)")
+    .action(async (task: string, options: { priority?: string }) => {
+        await TodoCore.addTask(task, options.priority);
+        console.log(chalk.green("Task added successfully."));
     });
 
 program
@@ -26,7 +28,7 @@ program
     .action(async () => {
         const todos = await TodoCore.listTasks();
         if (todos.length === 0) {
-            console.log("No uncompleted tasks.");
+            console.log(chalk.yellow("No uncompleted tasks."));
             return;
         }
 
@@ -38,7 +40,7 @@ program
                     message:
                         "Select tasks to mark as done. If you want cancel this mode, please press <Ctrl + c> :",
                     choices: todos.map((todo) => ({
-                        name: todo.text,
+                        name: `${todo.priority ? chalk.yellow(`(${todo.priority}) `) : ''}${todo.text}`,
                         value: todo.id,
                     })),
                 },
@@ -46,12 +48,12 @@ program
             .catch(() => ({ selectedTasks: [] }));
 
         if (selectedTasks.length === 0) {
-            console.log("No tasks selected.");
+            console.log(chalk.yellow("No tasks selected."));
             return;
         }
 
         await TodoCore.markTasksDone(selectedTasks);
-        console.log("Tasks marked as done.");
+        console.log(chalk.green("Tasks marked as done."));
     });
 
 program
@@ -61,11 +63,13 @@ program
     .action(async () => {
         const todos = await TodoCore.listTasks();
         if (todos.length === 0) {
-            console.log("No uncompleted tasks.");
+            console.log(chalk.yellow("No uncompleted tasks."));
             return;
         }
         todos.forEach((todo) =>
-            console.log(`${todo.text} (${todo.date}) [${todo.id}]`)
+            console.log(
+                `${chalk.red("□")} ${todo.priority ? chalk.yellow(`(${todo.priority}) `) : ''}${todo.text} ${chalk.gray(`(${todo.date})`)} ${chalk.blue(`[${todo.id}]`)}`
+            )
         );
     });
 
@@ -77,9 +81,86 @@ program
         const todos = await TodoCore.listTasks(true);
         todos.forEach((todo) =>
             console.log(
-                `${todo.completed ? "✓" : "☐"} ${todo.text} (${todo.date}) [${todo.id}]`
+                `${todo.completed ? chalk.green("✓") : chalk.red("□")} ${todo.priority ? chalk.yellow(`(${todo.priority}) `) : ''}${todo.text} ${chalk.gray(`(${todo.date})`)} ${chalk.blue(`[${todo.id}]`)}`
             )
         );
+    });
+
+program
+    .command("delete")
+    .alias("del")
+    .description("Delete tasks")
+    .action(async () => {
+        const todos = await TodoCore.listTasks(true);
+        if (todos.length === 0) {
+            console.log(chalk.yellow("No tasks to delete."));
+            return;
+        }
+
+        const { selectedTasks } = await inquirer
+            .prompt([
+                {
+                    type: "checkbox",
+                    name: "selectedTasks",
+                    message: "Select tasks to delete (cannot be undone). Press <Ctrl + c> to cancel:",
+                    choices: todos.map((todo) => ({
+                        name: `${todo.completed ? chalk.green("✓") : chalk.red("□")} ${todo.priority ? chalk.yellow(`(${todo.priority}) `) : ''}${todo.text}`,
+                        value: todo.id,
+                    })),
+                },
+            ])
+            .catch(() => ({ selectedTasks: [] }));
+
+        if (selectedTasks.length === 0) {
+            console.log(chalk.yellow("No tasks selected."));
+            return;
+        }
+
+        const { confirm } = await inquirer.prompt([
+            {
+                type: "confirm",
+                name: "confirm",
+                message: `Are you sure you want to delete ${chalk.red(selectedTasks.length)} task(s)?`,
+                default: false,
+            },
+        ]);
+
+        if (!confirm) {
+            console.log(chalk.yellow("Operation cancelled."));
+            return;
+        }
+
+        await TodoCore.deleteTasks(selectedTasks);
+        console.log(chalk.green("Tasks deleted successfully."));
+    });
+
+program
+    .command("delete-all")
+    .alias("da")
+    .description("Delete all tasks")
+    .action(async () => {
+        const todos = await TodoCore.listTasks(true);
+        if (todos.length === 0) {
+            console.log(chalk.yellow("No tasks to delete."));
+            return;
+        }
+
+        const { confirm } = await inquirer.prompt([
+            {
+                type: "confirm",
+                name: "confirm",
+                message: chalk.red("Are you sure you want to delete ALL tasks? This cannot be undone!"),
+                default: false,
+            },
+        ]);
+
+        if (!confirm) {
+            console.log(chalk.yellow("Operation cancelled."));
+            return;
+        }
+
+        await TodoCore.deleteAllTasks();
+        console.log(chalk.green("All tasks deleted successfully."));
     });
 
 program.parse(process.argv);

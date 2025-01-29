@@ -9,18 +9,37 @@
 ```bash
 $ npm install
 $ npm run build
-$ npm install -g .
+```
+
+## 開発時の実行方法
+
+### CLIの実行
+```bash
+# 基本的な実行方法
+$ npm run cli [command]
+
+# 例：
+$ npm run cli list          # タスク一覧を表示
+$ npm run cli add "タスク名"  # タスクを追加
+$ npm run cli list-all      # 完了済みを含むすべてのタスク表示
+```
+
+### サーバーの実行
+```bash
+$ npm run dev:server
 ```
 
 ## 機能一覧
 
 | CLIコマンド     | MCPサーバー機能    | 説明                                                   |
 | --------------- | ----------------- | ------------------------------------------------------ |
-| todo init       | todo_init         | ~/todo.txtを作成/初期化します                           |
-| todo add <TASK> | todo_add_task     | 新しいタスクを追加します                                |
-| todo d          | todo_mark_done    | タスクを完了状態にマークします（CLIは対話式選択）        |
-| todo l          | todo_list_tasks   | タスク一覧を表示します                                  |
-| todo la         | todo_list_tasks showCompleted | すべてのタスク（完了済み含む）を一覧表示します |
+| init            | todo_init         | ~/todo.txtを作成/初期化します                           |
+| add <TASK>      | todo_add_task     | 新しいタスクを追加します                                |
+| d, done         | todo_mark_done    | タスクを完了状態にマークします（CLIは対話式選択）        |
+| l, list         | todo_list_tasks   | タスク一覧を表示します                                  |
+| la, list-all    | todo_list_tasks showCompleted | すべてのタスク（完了済み含む）を一覧表示します |
+| del, delete     | -                 | タスクを削除します（対話式選択）                         |
+| da, delete-all  | -                 | すべてのタスクを削除します                               |
 
 ## データ形式
 

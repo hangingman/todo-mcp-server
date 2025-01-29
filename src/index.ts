@@ -105,6 +105,11 @@ class TodoServer {
                             task: {
                                 type: "string",
                                 description: "Task description"
+                            },
+                            priority: {
+                                type: "string",
+                                description: "Task priority (A-Z)",
+                                pattern: "^[A-Z]$"
                             }
                         },
                         required: ["task"]
@@ -140,6 +145,32 @@ class TodoServer {
                             }
                         }
                     }
+                },
+                {
+                    name: "todo_delete_tasks",
+                    description: "Delete specific tasks",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            taskIds: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                },
+                                description: "Array of task IDs to delete"
+                            }
+                        },
+                        required: ["taskIds"]
+                    }
+                },
+                {
+                    name: "todo_delete_all",
+                    description: "Delete all tasks",
+                    inputSchema: {
+                        type: "object",
+                        properties: {},
+                        required: []
+                    }
                 }
             ]
         }));
@@ -156,11 +187,14 @@ class TodoServer {
                     };
 
                 case "todo_add_task": {
-                    const { task } = request.params.arguments as { task: string };
+                    const { task, priority } = request.params.arguments as { task: string; priority?: string };
                     if (typeof task !== "string") {
                         throw new McpError(ErrorCode.InvalidParams, "Invalid task argument");
                     }
-                    await TodoCore.addTask(task);
+                    if (priority && !/^[A-Z]$/.test(priority)) {
+                        throw new McpError(ErrorCode.InvalidParams, "Priority must be a single uppercase letter A-Z");
+                    }
+                    await TodoCore.addTask(task, priority);
                     return {
                         content: [{
                             type: "text",
@@ -190,6 +224,30 @@ class TodoServer {
                         content: [{
                             type: "text",
                             text: JSON.stringify(tasks, null, 2)
+                        }]
+                    };
+                }
+
+                case "todo_delete_tasks": {
+                    const { taskIds } = request.params.arguments as { taskIds: string[] };
+                    if (!Array.isArray(taskIds)) {
+                        throw new McpError(ErrorCode.InvalidParams, "Invalid taskIds argument");
+                    }
+                    await TodoCore.deleteTasks(taskIds);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "Tasks deleted successfully"
+                        }]
+                    };
+                }
+
+                case "todo_delete_all": {
+                    await TodoCore.deleteAllTasks();
+                    return {
+                        content: [{
+                            type: "text",
+                            text: "All tasks deleted successfully"
                         }]
                     };
                 }

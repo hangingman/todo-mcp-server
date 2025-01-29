@@ -12,6 +12,7 @@ export interface Todo {
   date: string;
   id: string;
   completed: boolean;
+  priority?: string;
 }
 
 export class TodoCore {
@@ -25,14 +26,19 @@ export class TodoCore {
     }
   }
 
-  static async addTask(task: string): Promise<void> {
+  static async addTask(task: string, priority?: string): Promise<void> {
+    if (priority && !/^[A-Z]$/.test(priority)) {
+      throw new Error("Priority must be a single uppercase letter A-Z");
+    }
+
     const todo: Todo = {
       text: task,
       date: new Date().toISOString().split("T")[0],
       id: uuidv4(),
       completed: false,
+      priority,
     };
-    const todoString = `- [ ] ${todo.text} ${todo.date} ${todo.id}\n`;
+    const todoString = `- [ ] ${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} ${todo.date} ${todo.id}\n`;
     await fs.ensureFile(TODO_FILE);
     const content = await fs.readFile(TODO_FILE, "utf-8");
     await fs.writeFile(TODO_FILE, todoString + content);
@@ -64,23 +70,39 @@ export class TodoCore {
 
     return showCompleted ? todos : todos.filter((todo) => !todo.completed);
   }
+
+  static async deleteTasks(ids: string[]): Promise<void> {
+    const content = await fs.readFile(TODO_FILE, "utf-8");
+    const todos = content
+      .split("\n")
+      .filter((line) => line.trim() !== "")
+      .map(parseTodoLine);
+
+    const remainingTodos = todos.filter((todo) => !ids.includes(todo.id));
+    await fs.writeFile(TODO_FILE, remainingTodos.map(formatTodoLine).join("\n"));
+  }
+
+  static async deleteAllTasks(): Promise<void> {
+    await fs.writeFile(TODO_FILE, "");
+  }
 }
 
 function parseTodoLine(line: string): Todo {
-  const match = line.match(/- \[([ x])\] (.+) (\d{4}-\d{2}-\d{2}) (.+)/);
+  const match = line.match(/- \[([ x])\] (?:\(([A-Z])\) )?(.+) (\d{4}-\d{2}-\d{2}) (.+)/);
   if (match) {
     return {
       completed: match[1] === "x",
-      text: match[2],
-      date: match[3],
-      id: match[4],
+      priority: match[2] || undefined,
+      text: match[3],
+      date: match[4],
+      id: match[5],
     };
   }
   throw new Error(`Invalid todo line: ${line}`);
 }
 
 function formatTodoLine(todo: Todo): string {
-  return `- [${todo.completed ? "x" : " "}] ${todo.text} ${todo.date} ${
+  return `- [${todo.completed ? "x" : " "}] ${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} ${todo.date} ${
     todo.id
   }`;
 }
