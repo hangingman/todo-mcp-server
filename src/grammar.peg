@@ -1,0 +1,69 @@
+---
+export interface Todo {
+  completed: boolean;
+  completionDate?: string;
+  createdDate?: string;
+  priority?: string;
+  id?: string;
+  text: string;
+  projects: string[];
+  contexts: string[];
+}
+
+function extractProjects(text: string): string[] {
+  return (text.match(/\+(\S+)/g) || []).map(s => s.slice(1));
+}
+
+function extractContexts(text: string): string[] {
+  return (text.match(/@(\S+)/g) || []).map(s => s.slice(1));
+}
+---
+
+TodoLine
+  := CompletedTodo | IncompleteTodo
+
+CompletedTodo
+  := 'x' ws+ completionDate=Date ws+ createdDate=Date ws+ text=RemainingText
+    .value = Todo {
+      return {
+        completed: true,
+        completionDate: completionDate.value,
+        createdDate: createdDate.value,
+        text: text.value,
+        projects: extractProjects(text.value),
+        contexts: extractContexts(text.value),
+        priority: undefined,
+        id: undefined
+      };
+    }
+
+IncompleteTodo
+  := p={ priority=Priority ws+ }? c={ createdDate=Date ws+ }? text=RemainingText
+    .value = Todo {
+      return {
+        completed: false,
+        priority: p?.priority.value,
+        createdDate: c?.createdDate.value,
+        text: text.value,
+        projects: extractProjects(text.value),
+        contexts: extractContexts(text.value),
+        completionDate: undefined,
+        id: undefined
+      };
+    }
+
+Date
+  := yyyy='[0-9][0-9][0-9][0-9]' '-' mm='[0-9][0-9]' '-' dd='[0-9][0-9]'
+    .value = string{ return `${this.yyyy}-${this.mm}-${dd}`; }
+
+Priority
+  := p='\([A-Z]\)'
+    .value = string{ return `(${this.p})`; }
+
+ws
+  := '[ \t]'+
+
+RemainingText
+  := text='.*'
+    .value = string{ return this.text.trim(); }
+

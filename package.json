@@ -15,7 +15,8 @@
         "dev": "ts-node src/index.ts",
         "dev:server": "node build/index.js",
         "dev:cli": "node build/cli.js",
-        "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755') && require('fs').chmodSync('build/cli.js', '755')\"",
+        "build": "npm run tspeg && tsc && node -e \"require('fs').chmodSync('build/index.js', '755') && require('fs').chmodSync('build/cli.js', '755')\"",
+        "tspeg": "tspeg src/grammar.peg src/todo-parser.ts",
         "prepare": "npm run build",
         "watch": "tsc --watch",
         "inspector": "npx @modelcontextprotocol/inspector build/index.js",
@@ -32,6 +33,7 @@
         "commander": "^12.1.0",
         "fs-extra": "^11.2.0",
         "inquirer": "^12.3.0",
+        "tspeg": "^3.3.2",
         "typescript": "^5.7.2",
         "uuid": "^11.0.3"
     },

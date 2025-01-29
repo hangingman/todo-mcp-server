@@ -1,19 +1,12 @@
 import fs from "fs-extra";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { parse, Todo } from "./todo-parser.js";
 
 const TODO_FILE = path.join(
   process.env.HOME || process.env.USERPROFILE || "",
   "todo.txt"
 );
-
-export interface Todo {
-  text: string;
-  date: string;
-  id: string;
-  completed: boolean;
-  priority?: string;
-}
 
 export class TodoCore {
   static async init(): Promise<void> {
@@ -32,13 +25,18 @@ export class TodoCore {
     }
 
     const todo: Todo = {
-      text: task,
-      date: new Date().toISOString().split("T")[0],
-      id: uuidv4(),
       completed: false,
-      priority,
+      completionDate: undefined,
+      createdDate: new Date().toISOString().split("T")[0],
+      priority: priority,
+      id: uuidv4(),
+      text: task,
+      projects: [],
+      contexts: [],
     };
-    const todoString = `- [ ] ${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} ${todo.date} ${todo.id}\n`;
+    const todoString = `- [ ] ${todo.priority ? `(${todo.priority}) ` : ""}${
+      todo.text
+    } ${todo.createdDate} ${todo.id}\n`;
     await fs.ensureFile(TODO_FILE);
     const content = await fs.readFile(TODO_FILE, "utf-8");
     await fs.writeFile(TODO_FILE, todoString + content);
@@ -52,7 +50,7 @@ export class TodoCore {
       .map(parseTodoLine);
 
     const updatedTodos = todos.map((todo) => {
-      if (ids.includes(todo.id)) {
+      if (ids.includes(todo.id ?? "")) {
         return { ...todo, completed: true };
       }
       return todo;
@@ -78,8 +76,11 @@ export class TodoCore {
       .filter((line) => line.trim() !== "")
       .map(parseTodoLine);
 
-    const remainingTodos = todos.filter((todo) => !ids.includes(todo.id));
-    await fs.writeFile(TODO_FILE, remainingTodos.map(formatTodoLine).join("\n"));
+    const remainingTodos = todos.filter((todo) => !ids.includes(todo.id ?? ""));
+    await fs.writeFile(
+      TODO_FILE,
+      remainingTodos.map(formatTodoLine).join("\n")
+    );
   }
 
   static async deleteAllTasks(): Promise<void> {
@@ -88,21 +89,21 @@ export class TodoCore {
 }
 
 function parseTodoLine(line: string): Todo {
-  const match = line.match(/- \[([ x])\] (?:\(([A-Z])\) )?(.+) (\d{4}-\d{2}-\d{2}) (.+)/);
-  if (match) {
-    return {
-      completed: match[1] === "x",
-      priority: match[2] || undefined,
-      text: match[3],
-      date: match[4],
-      id: match[5],
-    };
+  try {
+    const parsed = parse(line);
+    return (
+      parsed?.ast?.value ??
+      (() => {
+        throw new Error(`Invalid todo line: ${line}`);
+      })()
+    );
+  } catch (e) {
+    throw new Error(`Invalid todo line: ${line}`);
   }
-  throw new Error(`Invalid todo line: ${line}`);
 }
 
 function formatTodoLine(todo: Todo): string {
-  return `- [${todo.completed ? "x" : " "}] ${todo.priority ? `(${todo.priority}) ` : ''}${todo.text} ${todo.date} ${
-    todo.id
-  }`;
+  return `- [${todo.completed ? "x" : " "}] ${
+    todo.priority ? `(${todo.priority}) ` : ""
+  }${todo.text} ${todo.createdDate} ${todo.id}`;
 }
