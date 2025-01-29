@@ -57,7 +57,7 @@ Date
     .value = string{ return `${this.yyyy}-${this.mm}-${dd}`; }
 
 Priority
-  := p='\([A-Z]\)'
+  := '\(' p='[A-Z]' '\)'
     .value = string{ return `(${this.p})`; }
 
 ws

@@ -52,7 +52,7 @@
 *   := yyyy='[0-9][0-9][0-9][0-9]' '-' mm='[0-9][0-9]' '-' dd='[0-9][0-9]'
 *     .value = string{ return `${this.yyyy}-${this.mm}-${dd}`; }
 * Priority
-*   := p='\([A-Z]\)'
+*   := '\(' p='[A-Z]' '\)'
 *     .value = string{ return `(${this.p})`; }
 * ws
 *   := '[ \t]'+
@@ -314,7 +314,9 @@ export class Parser {
                 let $scope$p: Nullable<string>;
                 let $$res: Nullable<Priority> = null;
                 if (true
-                    && ($scope$p = this.regexAccept(String.raw`(?:\([A-Z]\))`, "", $$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:\()`, "", $$dpth + 1, $$cr) !== null
+                    && ($scope$p = this.regexAccept(String.raw`(?:[A-Z])`, "", $$dpth + 1, $$cr)) !== null
+                    && this.regexAccept(String.raw`(?:\))`, "", $$dpth + 1, $$cr) !== null
                 ) {
                     $$res = new Priority($scope$p);
                 }
