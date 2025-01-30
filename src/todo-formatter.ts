@@ -9,9 +9,9 @@ export function formatTodoForDisplay(todo: Todo): string {
     parts.push(todo.completed ? chalk.green(checkbox) : chalk.gray(checkbox));
     parts.push(" ");
 
-    // 完了タスクの場合は x と完了日付を表示
+    // 完了タスクの場合は完了日付を表示
     if (todo.completed && todo.completionDate) {
-        parts.push(chalk.gray(`x ${todo.completionDate} `));
+        parts.push(chalk.gray(`${todo.completionDate} `));
     }
 
     // 優先度
