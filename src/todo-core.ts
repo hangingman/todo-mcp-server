@@ -19,6 +19,12 @@ export class TodoCore {
         }
     }
 
+    // ファイルの内容を完全にクリアするメソッドを追加
+    static async clearFile(): Promise<void> {
+        await fs.writeFile(TODO_FILE, "");
+        console.log("Todo file cleared successfully.");
+    }
+
     static async addTask(
         task: string,
         priority?: string,
@@ -26,8 +32,16 @@ export class TodoCore {
         context?: string,
         id?: string
     ): Promise<void> {
+        // 優先度のバリデーション
         if (priority && !/^[A-Z]$/.test(priority)) {
-            throw new Error("Priority must be a single uppercase letter A-Z");
+            throw new Error("Invalid priority");
+        }
+
+        // タスクの読み込みと重複IDのチェック
+        const existingTodos = await this.listTasks(true);
+        const existingIds = existingTodos.map(t => t.id);
+        if (id && existingIds.includes(id)) {
+            throw new Error("Duplicate task ID");
         }
 
         // タスクの生テキストから純粋なタスク部分を抽出
@@ -49,7 +63,9 @@ export class TodoCore {
             contexts: context ? [context] : [],
             task: taskText
         };
+
         const todoString = formatTodoLine(todo);
+
         await fs.ensureFile(TODO_FILE);
         const content = await fs.readFile(TODO_FILE, "utf-8");
         await fs.writeFile(TODO_FILE, todoString + '\n' + content);
@@ -104,8 +120,6 @@ export class TodoCore {
 function parseTodoLine(line: string): Todo {
     try {
         const parsed = parse(line);
-        console.log("Parsing line:", line);
-        console.log("Parse result:", JSON.stringify(parsed, null, 2));
         return (
             parsed?.ast?.value ??
             (() => {
@@ -113,13 +127,11 @@ function parseTodoLine(line: string): Todo {
             })()
         );
     } catch (e) {
-        console.error("Parse error:", e);
         throw new Error(`Invalid todo line: ${line}`);
     }
 }
 
 function formatTodoLine(todo: Todo): string {
-    // 優先度のフォーマットを修正
     const priorityPart = todo.priority ? `(${todo.priority}) ` : "";
     const completedPart = todo.completed ? "x " : "";
     const taskPart = todo.task;
