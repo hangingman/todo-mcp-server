@@ -24,11 +24,25 @@ program
     .command("add <task>")
     .description("Add a new task")
     .option("-p, --priority <priority>", "Set priority (A-Z)")
-    .option("--project <project>", "Add project")
-    .option("--context <context>", "Add context")
+    .option("--project <projects...>", "Add projects")
+    .option("--context <contexts...>", "Add contexts")
+    .option("--created <date>", "Set creation date (YYYY-MM-DD)")
     .option("--id <id>", "Set task ID")
-    .action(async (task: string, options: { priority?: string, project?: string, context?: string, id?: string }) => {
-        await TodoCore.addTask(task, options.priority, options.project, options.context, options.id);
+    .action(async (task: string, options: { 
+        priority?: string, 
+        project?: string[], 
+        context?: string[], 
+        created?: string,
+        id?: string 
+    }) => {
+        await TodoCore.addTask(
+            task, 
+            options.priority, 
+            options.project, 
+            options.context, 
+            options.id,
+            options.created
+        );
         console.log(chalk.green("Task added successfully."));
     });
 
@@ -37,7 +51,7 @@ program
     .alias("d")
     .description("Mark tasks as done")
     .action(async () => {
-        const todos = await TodoCore.listTasks();
+        const todos = await TodoCore.listTasks({});
         if (todos.length === 0) {
             console.log(chalk.yellow("No uncompleted tasks."));
             return;
@@ -51,8 +65,7 @@ program
                     message:
                         "Select tasks to mark as done. If you want cancel this mode, please press <Ctrl + c> :",
                     choices: todos.map((todo) => ({
-                        name: `${todo.priority ? chalk.yellow(`(${todo.priority}) `) : ""}${todo.text
-                            }`,
+                        name: `${todo.priority ? chalk.yellow(`(${todo.priority}) `) : ""}${todo.text}`,
                         value: todo.id,
                     })),
                 },
@@ -72,10 +85,22 @@ program
     .command("list")
     .alias("l")
     .description("List uncompleted tasks")
-    .action(async () => {
-        const todos = await TodoCore.listTasks();
+    .option("--project <project>", "Filter by project")
+    .option("--context <context>", "Filter by context")
+    .option("--priority <priority>", "Filter by priority (A-Z)")
+    .action(async (options: { 
+        project?: string, 
+        context?: string, 
+        priority?: string 
+    }) => {
+        const todos = await TodoCore.listTasks({
+            showCompleted: false,
+            project: options.project,
+            context: options.context,
+            priority: options.priority
+        });
         if (todos.length === 0) {
-            console.log(chalk.yellow("No uncompleted tasks."));
+            console.log(chalk.yellow("No matching tasks found."));
             return;
         }
         todos.forEach((todo) => {
@@ -87,10 +112,21 @@ program
     .command("list-all")
     .alias("la")
     .description("List all tasks")
-    .action(async () => {
-        const todos = await TodoCore.listTasks(true);
+    .option("--project <project>", "Filter by project")
+    .option("--context <context>", "Filter by priority (A-Z)")
+    .action(async (options: {
+        project?: string,
+        context?: string,
+        priority?: string
+    }) => {
+        const todos = await TodoCore.listTasks({
+            showCompleted: true,
+            project: options.project,
+            context: options.context,
+            priority: options.priority
+        });
         if (todos.length === 0) {
-            console.log(chalk.yellow("No tasks found."));
+            console.log(chalk.yellow("No matching tasks found."));
             return;
         }
         todos.forEach((todo) => {
@@ -103,7 +139,7 @@ program
     .alias("del")
     .description("Delete tasks")
     .action(async () => {
-        const todos = await TodoCore.listTasks(true);
+        const todos = await TodoCore.listTasks({ showCompleted: true });
         if (todos.length === 0) {
             console.log(chalk.yellow("No tasks to delete."));
             return;
@@ -154,7 +190,7 @@ program
     .alias("da")
     .description("Delete all tasks")
     .action(async () => {
-        const todos = await TodoCore.listTasks(true);
+        const todos = await TodoCore.listTasks({ showCompleted: true });
         if (todos.length === 0) {
             console.log(chalk.yellow("No tasks to delete."));
             return;

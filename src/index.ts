@@ -70,7 +70,7 @@ class TodoServer {
                     );
                 }
 
-                const todos = await TodoCore.listTasks(true);
+                const todos = await TodoCore.listTasks({ showCompleted: true });
                 return {
                     contents: [
                         {
@@ -111,13 +111,20 @@ class TodoServer {
                                 description: "Task priority (A-Z)",
                                 pattern: "^[A-Z]$"
                             },
-                            project: {
-                                type: "string",
-                                description: "Project associated with the task"
+                            projects: {
+                                type: "array",
+                                items: { type: "string" },
+                                description: "Projects associated with the task"
                             },
-                            context: {
+                            contexts: {
+                                type: "array",
+                                items: { type: "string" },
+                                description: "Contexts associated with the task"
+                            },
+                            createdDate: {
                                 type: "string",
-                                description: "Context associated with the task"
+                                description: "Creation date (YYYY-MM-DD)",
+                                pattern: "^\\d{4}-\\d{2}-\\d{2}$"
                             },
                             id: {
                                 type: "string",
@@ -154,6 +161,19 @@ class TodoServer {
                                 type: "boolean",
                                 description: "Whether to include completed tasks",
                                 default: false
+                            },
+                            project: {
+                                type: "string",
+                                description: "Filter by project"
+                            },
+                            context: {
+                                type: "string",
+                                description: "Filter by context"
+                            },
+                            priority: {
+                                type: "string",
+                                description: "Filter by priority",
+                                pattern: "^[A-Z]$"
                             }
                         }
                     }
@@ -199,14 +219,26 @@ class TodoServer {
                     };
 
                 case "todo_add_task": {
-                    const { task, priority, project, context, id } = request.params.arguments as { task: string; priority?: string; project?: string; context?: string; id?: string };
+                    const { task, priority, projects, contexts, id, createdDate } = request.params.arguments as {
+                        task: string;
+                        priority?: string;
+                        projects?: string[];
+                        contexts?: string[];
+                        id?: string;
+                        createdDate?: string;
+                    };
+                    
                     if (typeof task !== "string") {
                         throw new McpError(ErrorCode.InvalidParams, "Invalid task argument");
                     }
                     if (priority && !/^[A-Z]$/.test(priority)) {
                         throw new McpError(ErrorCode.InvalidParams, "Priority must be a single uppercase letter A-Z");
                     }
-                    await TodoCore.addTask(task, priority, project, context, id);
+                    if (createdDate && !/^\d{4}-\d{2}-\d{2}$/.test(createdDate)) {
+                        throw new McpError(ErrorCode.InvalidParams, "Created date must be in YYYY-MM-DD format");
+                    }
+
+                    await TodoCore.addTask(task, priority, projects, contexts, id, createdDate);
                     return {
                         content: [{
                             type: "text",
@@ -230,8 +262,20 @@ class TodoServer {
                 }
 
                 case "todo_list_tasks": {
-                    const { showCompleted = false } = request.params.arguments as { showCompleted?: boolean };
-                    const tasks = await TodoCore.listTasks(showCompleted);
+                    const { showCompleted = false, project, context, priority } = request.params.arguments as {
+                        showCompleted?: boolean;
+                        project?: string;
+                        context?: string;
+                        priority?: string;
+                    };
+
+                    const tasks = await TodoCore.listTasks({
+                        showCompleted,
+                        project,
+                        context,
+                        priority
+                    });
+
                     return {
                         content: [{
                             type: "text",

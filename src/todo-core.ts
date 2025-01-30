@@ -6,6 +6,13 @@ import { Logger } from "./logger.js";
 
 const logger = Logger.getInstance();
 
+export interface ListTasksOptions {
+    showCompleted?: boolean;
+    project?: string;
+    context?: string;
+    priority?: string;
+}
+
 export class TodoCore {
     private static getTodoFilePath(): string {
         return process.env.TODO_FILE || path.join(
@@ -38,20 +45,26 @@ export class TodoCore {
     static async addTask(
         task: string,
         priority?: string,
-        project?: string,
-        context?: string,
-        id?: string
+        projects?: string[],
+        contexts?: string[],
+        id?: string,
+        createdDate?: string
     ): Promise<void> {
         logger.debug(`Attempting to add task: ${task}`);
-        logger.debug(`Priority: ${priority}, Project: ${project}, Context: ${context}, ID: ${id}`);
+        logger.debug(`Priority: ${priority}, Projects: ${projects}, Contexts: ${contexts}, ID: ${id}, Created: ${createdDate}`);
 
         // 優先度のバリデーション
         if (priority && !/^[A-Z]$/.test(priority)) {
             throw new Error("Invalid priority");
         }
 
+        // 作成日のバリデーション
+        if (createdDate && !/^\d{4}-\d{2}-\d{2}$/.test(createdDate)) {
+            throw new Error("Invalid date format. Use YYYY-MM-DD");
+        }
+
         // タスクの読み込みと重複IDのチェック
-        const existingTodos = await this.listTasks(true);
+        const existingTodos = await this.listTasks({});
         const existingIds = existingTodos.map(t => t.id);
         if (id && existingIds.includes(id)) {
             throw new Error("Duplicate task ID");
@@ -65,17 +78,15 @@ export class TodoCore {
             .replace(/\s+/g, ' ')            // 余分な空白を1つにまとめる
             .trim();
 
-        const createdDate = new Date().toISOString().split("T")[0];
-
         const todo: Todo = {
             completed: false,
             completionDate: undefined,
-            createdDate: createdDate,
+            createdDate: createdDate || new Date().toISOString().split("T")[0],
             priority: priority,
             id: id || uuidv4(),
             text: task,
-            projects: project ? [project] : [],
-            contexts: context ? [context] : [],
+            projects: projects || [],
+            contexts: contexts || [],
             task: taskText
         };
 
@@ -133,8 +144,8 @@ export class TodoCore {
         logger.debug(`File updated successfully`);
     }
 
-    static async listTasks(showCompleted = false): Promise<Todo[]> {
-        logger.debug(`listTasks called with showCompleted=${showCompleted}`);
+    static async listTasks(options: ListTasksOptions): Promise<Todo[]> {
+        logger.debug(`listTasks called with options:`, options);
         const content = await fs.readFile(this.getTodoFilePath(), "utf-8");
         logger.debug(`File content:\n${content}`);
 
@@ -155,9 +166,14 @@ export class TodoCore {
             }
         });
 
-        const result = showCompleted ? parsedTodos : parsedTodos.filter((todo) => !todo.completed);
-        logger.debug(`Returning ${result.length} todos (${parsedTodos.length} total)`);
-        return result;
+        // フィルタリング
+        return parsedTodos.filter(todo => {
+            if (!options.showCompleted && todo.completed) return false;
+            if (options.project && !todo.projects.includes(options.project)) return false;
+            if (options.context && !todo.contexts.includes(options.context)) return false;
+            if (options.priority && todo.priority !== options.priority) return false;
+            return true;
+        });
     }
 
     static async deleteTasks(ids: string[]): Promise<void> {

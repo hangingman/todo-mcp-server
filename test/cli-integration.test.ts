@@ -85,7 +85,7 @@ describe("CLI Integration Tests", () => {
         }
 
         // TodoCore.listTasks()を使った確認
-        const tasks = await TodoCore.listTasks(true);
+        const tasks = await TodoCore.listTasks({ showCompleted: true });
         expect(tasks).to.have.lengthOf(2);
 
         // タスクの完了状態を確認
@@ -103,7 +103,7 @@ describe("CLI Integration Tests", () => {
         await TodoCore.addTask("Task 2", "B", undefined, undefined, "TEST-2");
 
         await TodoCore.deleteTasks(["TEST-1"]);
-        const tasks = await TodoCore.listTasks(true);
+        const tasks = await TodoCore.listTasks({ showCompleted: true });
         expect(tasks).to.have.lengthOf(1);
         expect(tasks[0].id).to.equal("TEST-2");
     });
@@ -113,7 +113,7 @@ describe("CLI Integration Tests", () => {
         await TodoCore.addTask("Task 2", "B");
 
         await TodoCore.deleteAllTasks();
-        const tasks = await TodoCore.listTasks(true);
+        const tasks = await TodoCore.listTasks({ showCompleted: true });
         expect(tasks).to.have.lengthOf(0);
 
         // ファイルは存在するが空であることを確認
@@ -124,6 +124,34 @@ describe("CLI Integration Tests", () => {
 
         const content = await fs.readFile(tmpFile.path, "utf-8");
         expect(content.trim()).to.equal("");
+    });
+
+    // 新機能のテストを追加
+    it("should filter tasks by project", async () => {
+        await TodoCore.addTask("Task 1", "A", ["ProjectA"], undefined, "TEST-1");
+        await TodoCore.addTask("Task 2", "B", ["ProjectB"], undefined, "TEST-2");
+
+        const tasks = await TodoCore.listTasks({ project: "ProjectA" });
+        expect(tasks).to.have.lengthOf(1);
+        expect(tasks[0].projects).to.include("ProjectA");
+    });
+
+    it("should filter tasks by context", async () => {
+        await TodoCore.addTask("Task 1", "A", undefined, ["@home"], "TEST-1");
+        await TodoCore.addTask("Task 2", "B", undefined, ["@work"], "TEST-2");
+
+        const tasks = await TodoCore.listTasks({ context: "@home" });
+        expect(tasks).to.have.lengthOf(1);
+        expect(tasks[0].contexts).to.include("@home");
+    });
+
+    it("should filter tasks by priority", async () => {
+        await TodoCore.addTask("Task 1", "A", undefined, undefined, "TEST-1");
+        await TodoCore.addTask("Task 2", "B", undefined, undefined, "TEST-2");
+
+        const tasks = await TodoCore.listTasks({ priority: "A" });
+        expect(tasks).to.have.lengthOf(1);
+        expect(tasks[0].priority).to.equal("A");
     });
 });
 
