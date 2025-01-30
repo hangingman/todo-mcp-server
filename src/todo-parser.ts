@@ -26,6 +26,7 @@
 * function extractTask(text: string): string {
 *   return text
 *     .replace(/^x /g, '')              // チェックを除去
+*     .replace(/\([A-Z]\) /g, '')       // 優先度を除去
 *     .replace(/\+\S+/g, '')            // プロジェクトタグを除去
 *     .replace(/@\S+/g, '')             // コンテキストタグを除去
 *     .replace(/id:[A-Za-z0-9-]+/g, '') // IDを除去
@@ -34,15 +35,19 @@
 *     .trim();                          // 前後の空白を除去
 * }
 * ---
+* // todo.txt形式の仕様に関する重要な注意点:
+* // 1. 完了タスク（CompletedTodo）は必ず"x "で始まり、その後に完了日付が続く
+* // 2. 完了タスクでは優先度（priority）は存在しない。これはtodo.txt形式の仕様です
+* // 3. 未完了タスク（IncompleteTodo）では優先度はオプショナル
 * TodoLine
 *   := CompletedTodo | IncompleteTodo
 * CompletedTodo
-*   := 'x' ws completionDate=Date ws createdDate=Date ws task=RemainingText
+*   := 'x ' ws? completionDate=Date ws? c={ createdDate=Date ws }? task=RemainingText
 *     .value = Todo {
 *       return {
 *         completed: true,
 *         completionDate: completionDate.value,
-*         createdDate: createdDate.value,
+*         createdDate: c?.createdDate.value ? parseISO(c.createdDate.value).toISOString().split("T")[0] : undefined,
 *         text: task.value,
 *         task: extractTask(task.value),
 *         projects: extractProjects(task.value),
@@ -109,6 +114,7 @@ function extractContexts(text: string): string[] {
 function extractTask(text: string): string {
   return text
     .replace(/^x /g, '')              // チェックを除去
+    .replace(/\([A-Z]\) /g, '')       // 優先度を除去
     .replace(/\+\S+/g, '')            // プロジェクトタグを除去
     .replace(/@\S+/g, '')             // コンテキストタグを除去
     .replace(/id:[A-Za-z0-9-]+/g, '') // IDを除去
@@ -126,6 +132,7 @@ export enum ASTKinds {
     TodoLine_1 = "TodoLine_1",
     TodoLine_2 = "TodoLine_2",
     CompletedTodo = "CompletedTodo",
+    CompletedTodo_$0 = "CompletedTodo_$0",
     IncompleteTodo = "IncompleteTodo",
     IncompleteTodo_$0 = "IncompleteTodo_$0",
     IncompleteTodo_$1 = "IncompleteTodo_$1",
@@ -140,18 +147,18 @@ export type TodoLine_2 = IncompleteTodo;
 export class CompletedTodo {
     public kind: ASTKinds.CompletedTodo = ASTKinds.CompletedTodo;
     public completionDate: Date;
-    public createdDate: Date;
+    public c: Nullable<CompletedTodo_$0>;
     public task: RemainingText;
     public value: Todo;
-    constructor(completionDate: Date, createdDate: Date, task: RemainingText){
+    constructor(completionDate: Date, c: Nullable<CompletedTodo_$0>, task: RemainingText){
         this.completionDate = completionDate;
-        this.createdDate = createdDate;
+        this.c = c;
         this.task = task;
         this.value = ((): Todo => {
         return {
         completed: true,
         completionDate: completionDate.value,
-        createdDate: createdDate.value,
+        createdDate: c?.createdDate.value ? parseISO(c.createdDate.value).toISOString().split("T")[0] : undefined,
         text: task.value,
         task: extractTask(task.value),
         projects: extractProjects(task.value),
@@ -161,6 +168,10 @@ export class CompletedTodo {
       };
         })();
     }
+}
+export interface CompletedTodo_$0 {
+    kind: ASTKinds.CompletedTodo_$0;
+    createdDate: Date;
 }
 export class IncompleteTodo {
     public kind: ASTKinds.IncompleteTodo = ASTKinds.IncompleteTodo;
@@ -266,19 +277,32 @@ export class Parser {
         return this.run<CompletedTodo>($$dpth,
             () => {
                 let $scope$completionDate: Nullable<Date>;
-                let $scope$createdDate: Nullable<Date>;
+                let $scope$c: Nullable<Nullable<CompletedTodo_$0>>;
                 let $scope$task: Nullable<RemainingText>;
                 let $$res: Nullable<CompletedTodo> = null;
                 if (true
-                    && this.regexAccept(String.raw`(?:x)`, "", $$dpth + 1, $$cr) !== null
-                    && this.matchws($$dpth + 1, $$cr) !== null
+                    && this.regexAccept(String.raw`(?:x )`, "", $$dpth + 1, $$cr) !== null
+                    && ((this.matchws($$dpth + 1, $$cr)) || true)
                     && ($scope$completionDate = this.matchDate($$dpth + 1, $$cr)) !== null
-                    && this.matchws($$dpth + 1, $$cr) !== null
-                    && ($scope$createdDate = this.matchDate($$dpth + 1, $$cr)) !== null
-                    && this.matchws($$dpth + 1, $$cr) !== null
+                    && ((this.matchws($$dpth + 1, $$cr)) || true)
+                    && (($scope$c = this.matchCompletedTodo_$0($$dpth + 1, $$cr)) || true)
                     && ($scope$task = this.matchRemainingText($$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = new CompletedTodo($scope$completionDate, $scope$createdDate, $scope$task);
+                    $$res = new CompletedTodo($scope$completionDate, $scope$c, $scope$task);
+                }
+                return $$res;
+            });
+    }
+    public matchCompletedTodo_$0($$dpth: number, $$cr?: ErrorTracker): Nullable<CompletedTodo_$0> {
+        return this.run<CompletedTodo_$0>($$dpth,
+            () => {
+                let $scope$createdDate: Nullable<Date>;
+                let $$res: Nullable<CompletedTodo_$0> = null;
+                if (true
+                    && ($scope$createdDate = this.matchDate($$dpth + 1, $$cr)) !== null
+                    && this.matchws($$dpth + 1, $$cr) !== null
+                ) {
+                    $$res = {kind: ASTKinds.CompletedTodo_$0, createdDate: $scope$createdDate};
                 }
                 return $$res;
             });

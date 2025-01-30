@@ -15,7 +15,9 @@ export class TodoCore {
     }
 
     static setVerbose(verbose: boolean): void {
-        logger.setVerbose(verbose);
+        // process.env.DEBUG が 'true' の場合は verbose を true に設定
+        const isDebugMode = process.env.DEBUG?.toLowerCase() === 'true';
+        logger.setVerbose(isDebugMode || verbose);
     }
 
     static async init(): Promise<void> {
@@ -115,9 +117,10 @@ export class TodoCore {
                 const updatedTodo = {
                     ...todo,
                     completed: true,
-                    completionDate: completionDate
+                    completionDate: completionDate,
+                    priority: undefined  // 完了時に優先度を削除
                 };
-                logger.debug("Updated todo:", updatedTodo);
+                logger.debug("Updated todo before format:", updatedTodo);
                 return updatedTodo;
             }
             return todo;
@@ -131,13 +134,30 @@ export class TodoCore {
     }
 
     static async listTasks(showCompleted = false): Promise<Todo[]> {
+        logger.debug(`listTasks called with showCompleted=${showCompleted}`);
         const content = await fs.readFile(this.getTodoFilePath(), "utf-8");
+        logger.debug(`File content:\n${content}`);
+
         const todos = content
             .split("\n")
-            .filter((line) => line.trim() !== "")
-            .map(parseTodoLine);
+            .filter((line) => line.trim() !== "");
+        logger.debug(`Filtered lines: ${todos.length}`);
 
-        return showCompleted ? todos : todos.filter((todo) => !todo.completed);
+        const parsedTodos = todos.map(line => {
+            logger.debug(`Parsing line: ${line}`);
+            try {
+                const todo = parseTodoLine(line);
+                logger.debug(`Parsed todo:`, todo);
+                return todo;
+            } catch (error) {
+                logger.debug(`Error parsing line:`, error);
+                throw error;
+            }
+        });
+
+        const result = showCompleted ? parsedTodos : parsedTodos.filter((todo) => !todo.completed);
+        logger.debug(`Returning ${result.length} todos (${parsedTodos.length} total)`);
+        return result;
     }
 
     static async deleteTasks(ids: string[]): Promise<void> {
@@ -184,7 +204,9 @@ function parseTodoLine(line: string): Todo {
 }
 
 function formatTodoLine(todo: Todo): string {
-    const priorityPart = todo.priority ? `(${todo.priority}) ` : "";
+    logger.debug("Formatting todo:", todo);
+
+    const priorityPart = todo.completed ? "" : (todo.priority ? `(${todo.priority}) ` : "");  // 完了タスクの場合は優先度を表示しない
     const completedPart = todo.completed ? "x " : "";
     const completionDatePart = todo.completed && todo.completionDate ? `${todo.completionDate} ` : "";
     const taskPart = todo.task;
@@ -193,7 +215,10 @@ function formatTodoLine(todo: Todo): string {
     const projectPart = todo.projects.length > 0 ? ` ${todo.projects.map(p => `+${p}`).join(" ")}` : "";
     const contextPart = todo.contexts.length > 0 ? ` ${todo.contexts.map(c => `@${c}`).join(" ")}` : "";
 
-    return todo.completed
+    const formatted = todo.completed
         ? `x ${completionDatePart}${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim()
         : `${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim();
+
+    logger.debug("Formatted line:", formatted);
+    return formatted;
 }

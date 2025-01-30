@@ -4,6 +4,7 @@ import { program } from "commander";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import { TodoCore } from "./todo-core.js";
+import { formatTodoForDisplay } from "./todo-formatter.js";
 
 program
     .version("0.1.0")
@@ -78,14 +79,7 @@ program
             return;
         }
         todos.forEach((todo) => {
-            const checkbox = todo.completed ? chalk.green("✓") : chalk.red("□");
-            const priority = todo.priority ? chalk.yellow(`(${todo.priority}) `) : "";
-            const date = todo.createdDate ? chalk.gray(`${todo.createdDate}`) : "";
-            const taskId = chalk.blue(`id:${todo.id}`);
-
-            console.log(
-                `${checkbox} ${priority}${todo.task} ${date} ${taskId}`
-            );
+            console.log(formatTodoForDisplay(todo));
         });
     });
 
@@ -95,17 +89,12 @@ program
     .description("List all tasks")
     .action(async () => {
         const todos = await TodoCore.listTasks(true);
+        if (todos.length === 0) {
+            console.log(chalk.yellow("No tasks found."));
+            return;
+        }
         todos.forEach((todo) => {
-            console.log(`howdy? ${JSON.stringify(todo)}`);
-
-            const checkbox = todo.completed ? chalk.green("✓") : chalk.red("□");
-            const priority = todo.priority ? chalk.yellow(`(${todo.priority}) `) : "";
-            const date = todo.createdDate ? chalk.gray(`${todo.createdDate}`) : "";
-            const taskId = chalk.blue(`id:${todo.id}`);
-
-            console.log(
-                `${checkbox} ${priority}${todo.task} ${date} ${taskId}`
-            );
+            console.log(formatTodoForDisplay(todo));
         });
     });
 

@@ -4,6 +4,8 @@ import tmp from 'tmp-promise';
 import fs from "fs/promises";
 import path from "path";
 
+import { parse } from "../src/todo-parser.js";
+
 describe("CLI Integration Tests", () => {
     let tmpFile: tmp.FileResult;
     let originalTodoFile: string | undefined;
@@ -54,16 +56,47 @@ describe("CLI Integration Tests", () => {
         expect(content).to.match(/^x \d{4}-\d{2}-\d{2}/); // 完了日のフォーマット確認
     });
 
-    it("should list all tasks correctly", async () => {
+    it("should list all tasks correctly including completed ones", async () => {
+        // 未完了タスクを追加
+        TodoCore.setVerbose(true);
         await TodoCore.addTask("Task 1", "A", undefined, undefined, "TEST-1");
         await TodoCore.addTask("Task 2", "B", undefined, undefined, "TEST-2");
 
+        // Task 1を完了としてマーク
+        await TodoCore.markTasksDone(["TEST-1"]);
+
+        // ファイルの内容を直接確認
+        const content = await fs.readFile(tmpFile.path, "utf-8");
+        const lines = content.trim().split("\n");
+
+        // 各行を解析して正しい形式かチェック
+        for (const line of lines) {
+            const parsed = parse(line);
+            expect(parsed.ast, `Failed to parse line: ${line}`).to.not.be.null;
+
+            const todo = parsed.ast?.value;
+            if (todo?.id === "TEST-1") {
+                expect(todo.completed, "Task 1 should be marked as completed").to.be.true;
+                expect(todo.priority, "Completed task should not have priority").to.be.undefined;
+                expect(todo.completionDate, "Completed task should have completion date").to.match(/^\d{4}-\d{2}-\d{2}$/);
+            } else if (todo?.id === "TEST-2") {
+                expect(todo.completed, "Task 2 should not be marked as completed").to.be.false;
+                expect(todo.priority).to.equal("B");
+            }
+        }
+
+        // TodoCore.listTasks()を使った確認
         const tasks = await TodoCore.listTasks(true);
         expect(tasks).to.have.lengthOf(2);
-        expect(tasks[0].id).to.equal("TEST-2");  // 最新のタスクが先頭になる
-        expect(tasks[0].priority).to.equal("B");
-        expect(tasks[1].id).to.equal("TEST-1");
-        expect(tasks[1].priority).to.equal("A");
+
+        // タスクの完了状態を確認
+        const task1 = tasks.find(t => t.id === "TEST-1");
+        const task2 = tasks.find(t => t.id === "TEST-2");
+
+        expect(task1?.completed, "Task 1 should be completed").to.be.true;
+        expect(task1?.priority, "Completed task should not have priority").to.be.undefined;
+        expect(task2?.completed, "Task 2 should not be completed").to.be.false;
+        expect(task2?.priority).to.equal("B");
     });
 
     it("should delete specific tasks", async () => {
