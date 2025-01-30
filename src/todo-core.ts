@@ -213,6 +213,80 @@ export class TodoCore {
         await fs.writeFile(this.getTodoFilePath(), "");
         logger.debug("All tasks deleted");
     }
+
+    static async bulkAddTasks(
+        tasks: {
+            task: string,
+            priority?: string,
+            projects?: string[],
+            contexts?: string[],
+            id?: string,
+            createdDate?: string
+        }[]
+    ): Promise<void> {
+        logger.debug(`Attempting to bulk add ${tasks.length} tasks`);
+
+        // Step 1: IDの重複チェック
+        const providedIds = tasks.filter(t => t.id).map(t => t.id!);
+        const uniqueIds = new Set(providedIds);
+        if (uniqueIds.size !== providedIds.length) {
+            throw new Error("Duplicate IDs in bulk tasks");
+        }
+
+        // Step 2: 既存のタスクとのID重複チェック
+        const existingTodos = await this.listTasks({});
+        const existingIds = new Set(existingTodos.map(t => t.id));
+        const duplicateIds = providedIds.filter(id => existingIds.has(id));
+        if (duplicateIds.length > 0) {
+            throw new Error(`Duplicate task IDs with existing tasks: ${duplicateIds.join(", ")}`);
+        }
+
+        // Step 3: 全タスクのバリデーション
+        for (const task of tasks) {
+            if (task.priority && !/^[A-Z]$/.test(task.priority)) {
+                throw new Error(`Invalid priority in task: ${task.task}`);
+            }
+            if (task.createdDate && !/^\d{4}-\d{2}-\d{2}$/.test(task.createdDate)) {
+                throw new Error(`Invalid date format in task: ${task.task}. Use YYYY-MM-DD`);
+            }
+            if (task.projects?.some(p => p.startsWith('+') || p.includes(' '))) {
+                throw new Error(`Projects should not include '+' prefix or whitespace in task: ${task.task}`);
+            }
+            if (task.contexts?.some(c => c.startsWith('@') || c.includes(' '))) {
+                throw new Error(`Contexts should not include '@' prefix or whitespace in task: ${task.task}`);
+            }
+        }
+
+        // Step 4: 全タスクの一括追加
+        const todoStrings = tasks.map(taskData => {
+            const taskText = taskData.task
+                .replace(/\+\S+/g, '')
+                .replace(/@\S+/g, '')
+                .replace(/id:[A-Za-z0-9-]+/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            const todo: Todo = {
+                completed: false,
+                completionDate: undefined,
+                createdDate: taskData.createdDate || new Date().toISOString().split("T")[0],
+                priority: taskData.priority,
+                id: taskData.id || uuidv4(),
+                text: taskData.task,
+                projects: taskData.projects || [],
+                contexts: taskData.contexts || [],
+                task: taskText
+            };
+
+            return formatTodoLine(todo);
+        });
+
+        // Step 5: ファイルに書き込み
+        await fs.ensureFile(this.getTodoFilePath());
+        const currentContent = await fs.readFile(this.getTodoFilePath(), "utf-8");
+        await fs.writeFile(this.getTodoFilePath(), todoStrings.join('\n') + '\n' + currentContent);
+        logger.debug(`Successfully added ${tasks.length} tasks`);
+    }
 }
 
 function parseTodoLine(line: string): Todo {

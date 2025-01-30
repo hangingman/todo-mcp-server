@@ -52,6 +52,54 @@ class TodoServer {
         this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
             resources: [
                 {
+                    name: "todo_bulk_add_tasks",
+                    description: "Add multiple todo tasks in bulk",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            tasks: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        task: {
+                                            type: "string",
+                                            description: "Task description"
+                                        },
+                                        priority: {
+                                            type: "string",
+                                            description: "Task priority (A-Z)",
+                                            pattern: "^[A-Z]$"
+                                        },
+                                        projects: {
+                                            type: "array",
+                                            items: { type: "string" },
+                                            description: "Projects associated with the task (WITHOUT '+' prefix, e.g. ['Home', 'Work'] not ['+Home', '+Work'])"
+                                        },
+                                        contexts: {
+                                            type: "array",
+                                            items: { type: "string" },
+                                            description: "Contexts associated with the task (WITHOUT '@' prefix, e.g. ['phone', 'email'] not ['@phone', '@email'])"
+                                        },
+                                        createdDate: {
+                                            type: "string",
+                                            description: "Creation date (YYYY-MM-DD)",
+                                            pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+                                        },
+                                        id: {
+                                            type: "string",
+                                            description: "Unique identifier for the task"
+                                        }
+                                    },
+                                    required: ["task"]
+                                },
+                                description: "Array of tasks to add"
+                            }
+                        },
+                        required: ["tasks"]
+                    }
+                },
+                {
                     uri: "todo://tasks",
                     name: "Todo Tasks",
                     mimeType: "application/json",
@@ -304,6 +352,33 @@ class TodoServer {
                         content: [{
                             type: "text",
                             text: "All tasks deleted successfully"
+                        }]
+                    };
+                }
+
+                case "todo_bulk_add_tasks": {
+                    const { tasks } = request.params.arguments as { tasks: Array<{
+                        task: string;
+                        priority?: string;
+                        projects?: string[];
+                        contexts?: string[];
+                        id?: string;
+                        createdDate?: string;
+                    }>};
+
+                    if (!Array.isArray(tasks)) {
+                        throw new McpError(ErrorCode.InvalidParams, "tasks parameter must be an array");
+                    }
+
+                    if (tasks.length === 0) {
+                        throw new McpError(ErrorCode.InvalidParams, "tasks array cannot be empty");
+                    }
+
+                    await TodoCore.bulkAddTasks(tasks);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: `Successfully added ${tasks.length} tasks`
                         }]
                     };
                 }

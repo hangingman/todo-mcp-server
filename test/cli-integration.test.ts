@@ -153,6 +153,79 @@ describe("CLI Integration Tests", () => {
         expect(tasks).to.have.lengthOf(1);
         expect(tasks[0].priority).to.equal("A");
     });
+
+    // Bulk API tests
+    it("should add multiple tasks in bulk", async () => {
+        const bulkTasks = [
+            {
+                task: "Task 1",
+                priority: "A",
+                projects: ["ProjectA"],
+                contexts: ["home"],
+                id: "BULK-1"
+            },
+            {
+                task: "Task 2",
+                priority: "B",
+                projects: ["ProjectB"],
+                contexts: ["work"],
+                id: "BULK-2"
+            }
+        ];
+
+        await TodoCore.bulkAddTasks(bulkTasks);
+
+        const tasks = await TodoCore.listTasks({});
+        expect(tasks).to.have.lengthOf(2);
+        expect(tasks.map(t => t.id)).to.include("BULK-1");
+        expect(tasks.map(t => t.id)).to.include("BULK-2");
+
+        const task1 = tasks.find(t => t.id === "BULK-1");
+        expect(task1?.priority).to.equal("A");
+        expect(task1?.projects).to.include("ProjectA");
+        expect(task1?.contexts).to.include("home");
+
+        const task2 = tasks.find(t => t.id === "BULK-2");
+        expect(task2?.priority).to.equal("B");
+        expect(task2?.projects).to.include("ProjectB");
+        expect(task2?.contexts).to.include("work");
+    });
+
+    it("should reject bulk tasks with duplicate IDs", async () => {
+        const bulkTasks = [
+            {
+                task: "Task 1",
+                id: "BULK-1"
+            },
+            {
+                task: "Task 2",
+                id: "BULK-1"  // 同じID
+            }
+        ];
+
+        try {
+            await TodoCore.bulkAddTasks(bulkTasks);
+            expect.fail("Should have thrown an error");
+        } catch (error: any) {
+            expect(error.message).to.include("Duplicate IDs in bulk tasks");
+        }
+    });
+
+    it("should reject bulk tasks with invalid contexts format", async () => {
+        const bulkTasks = [
+            {
+                task: "Task 1",
+                contexts: ["@home"]  // @付きは不正
+            }
+        ];
+
+        try {
+            await TodoCore.bulkAddTasks(bulkTasks);
+            expect.fail("Should have thrown an error");
+        } catch (error: any) {
+            expect(error.message).to.include("Contexts should not include '@' prefix");
+        }
+    });
 });
 
 describe("CLI Error Cases", () => {
