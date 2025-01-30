@@ -19,7 +19,7 @@ export class TodoCore {
     }
   }
 
-  static async addTask(task: string, priority?: string): Promise<void> {
+  static async addTask(task: string, priority?: string, project?: string, context?: string, id?: string): Promise<void> {
     if (priority && !/^[A-Z]$/.test(priority)) {
       throw new Error("Priority must be a single uppercase letter A-Z");
     }
@@ -29,14 +29,14 @@ export class TodoCore {
       completionDate: undefined,
       createdDate: new Date().toISOString().split("T")[0],
       priority: priority,
-      id: uuidv4(),
+      id: id || uuidv4(),
       text: task,
-      projects: [],
-      contexts: [],
+      projects: project ? [project] : [],
+      contexts: context ? [context] : [],
     };
     const todoString = `- [ ] ${todo.priority ? `(${todo.priority}) ` : ""}${
       todo.text
-    } ${todo.createdDate} ${todo.id}\n`;
+    } ${todo.createdDate} ${todo.id} ${todo.projects.map(p => `+${p}`).join(' ')} ${todo.contexts.map(c => `@${c}`).join(' ')}\n`;
     await fs.ensureFile(TODO_FILE);
     const content = await fs.readFile(TODO_FILE, "utf-8");
     await fs.writeFile(TODO_FILE, todoString + content);

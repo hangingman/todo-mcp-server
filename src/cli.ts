@@ -16,8 +16,11 @@ program
   .command("add <task>")
   .description("Add a new task")
   .option("-p, --priority <priority>", "Set priority (A-Z)")
-  .action(async (task: string, options: { priority?: string }) => {
-    await TodoCore.addTask(task, options.priority);
+  .option("--project <project>", "Add project")
+  .option("--context <context>", "Add context")
+  .option("--id <id>", "Set task ID")
+  .action(async (task: string, options: { priority?: string, project?: string, context?: string, id?: string }) => {
+    await TodoCore.addTask(task, options.priority, options.project, options.context, options.id);
     console.log(chalk.green("Task added successfully."));
   });
 
