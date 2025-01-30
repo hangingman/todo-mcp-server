@@ -137,12 +137,12 @@ describe("CLI Integration Tests", () => {
     });
 
     it("should filter tasks by context", async () => {
-        await TodoCore.addTask("Task 1", "A", undefined, ["@home"], "TEST-1");
-        await TodoCore.addTask("Task 2", "B", undefined, ["@work"], "TEST-2");
+        await TodoCore.addTask("Task 1", "A", undefined, ["home"], "TEST-1");
+        await TodoCore.addTask("Task 2", "B", undefined, ["work"], "TEST-2");
 
-        const tasks = await TodoCore.listTasks({ context: "@home" });
+        const tasks = await TodoCore.listTasks({ context: "home" });
         expect(tasks).to.have.lengthOf(1);
-        expect(tasks[0].contexts).to.include("@home");
+        expect(tasks[0].contexts).to.includes("home");
     });
 
     it("should filter tasks by priority", async () => {

@@ -5,10 +5,11 @@
     "private": true,
     "type": "module",
     "bin": {
-        "todo-mcp-server": "./build/index.js"
+        "todo-mcp-server": "./build/src/index.js"
     },
     "files": [
-        "build"
+        "build",
+        "build/src"
     ],
     "scripts": {
         "start": "ts-node src/index.ts",

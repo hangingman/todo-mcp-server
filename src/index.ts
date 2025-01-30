@@ -114,12 +114,12 @@ class TodoServer {
                             projects: {
                                 type: "array",
                                 items: { type: "string" },
-                                description: "Projects associated with the task"
+                                description: "Projects associated with the task (WITHOUT '+' prefix, e.g. ['Home', 'Work'] not ['+Home', '+Work'])"
                             },
                             contexts: {
                                 type: "array",
                                 items: { type: "string" },
-                                description: "Contexts associated with the task"
+                                description: "Contexts associated with the task (WITHOUT '@' prefix, e.g. ['phone', 'email'] not ['@phone', '@email'])"
                             },
                             createdDate: {
                                 type: "string",

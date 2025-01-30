@@ -63,6 +63,16 @@ export class TodoCore {
             throw new Error("Invalid date format. Use YYYY-MM-DD");
         }
 
+        // projectsのバリデーション
+        if (projects && projects.some(p => p.startsWith('+') || p.includes(' '))) {
+            throw new Error("Projects should not include '+' prefix or whitespace");
+        }
+
+        // contextsのバリデーション
+        if (contexts && contexts.some(c => c.startsWith('@') || c.includes(' '))) {
+            throw new Error("Contexts should not include '@' prefix or whitespace");
+        }
+
         // タスクの読み込みと重複IDのチェック
         const existingTodos = await this.listTasks({});
         const existingIds = existingTodos.map(t => t.id);
