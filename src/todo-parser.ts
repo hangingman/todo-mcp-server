@@ -11,6 +11,10 @@
 *   projects: string[];
 *   contexts: string[];
 * }
+* function extractId(text: string): string {
+*   const match = text.match(/(?:^|\s)id:([A-Za-z0-9-]+)/);
+*   return match ? match[1] : '';
+* }
 * function extractProjects(text: string): string[] {
 *   return (text.match(/\+(\S+)/g) || []).map(s => s.slice(1));
 * }
@@ -20,6 +24,8 @@
 * ---
 * TodoLine
 *   := CompletedTodo | IncompleteTodo
+* // todo.txtの仕様では、完了済みタスクにはpriorityが含まれない
+* // そのため、priorityはundefinedとして処理する
 * CompletedTodo
 *   := 'x' ws+ completionDate=Date ws+ createdDate=Date ws+ text=RemainingText
 *     .value = Todo {
@@ -31,7 +37,7 @@
 *         projects: extractProjects(text.value),
 *         contexts: extractContexts(text.value),
 *         priority: undefined,
-*         id: undefined
+*         id: extractId(text.value)
 *       };
 *     }
 * IncompleteTodo
@@ -45,17 +51,17 @@
 *         projects: extractProjects(text.value),
 *         contexts: extractContexts(text.value),
 *         completionDate: undefined,
-*         id: undefined
+*         id: extractId(text.value)
 *       };
 *     }
 * Date
 *   := yyyy='[0-9][0-9][0-9][0-9]' '-' mm='[0-9][0-9]' '-' dd='[0-9][0-9]'
-*     .value = string{ return `${this.yyyy}-${this.mm}-${dd}`; }
+*     .value = string{ return `${this.yyyy}-${this.mm}-${this.dd}`; }
 * Priority
 *   := '\(' p='[A-Z]' '\)'
 *     .value = string{ return `(${this.p})`; }
 * ws
-*   := '[ \t]'+
+*   := '[ \t]+'
 * RemainingText
 *   := text='.*'
 *     .value = string{ return this.text.trim(); }
@@ -70,6 +76,11 @@ export interface Todo {
   text: string;
   projects: string[];
   contexts: string[];
+}
+
+function extractId(text: string): string {
+  const match = text.match(/(?:^|\s)id:([A-Za-z0-9-]+)/);
+  return match ? match[1] : '';
 }
 
 function extractProjects(text: string): string[] {
@@ -119,7 +130,7 @@ export class CompletedTodo {
         projects: extractProjects(text.value),
         contexts: extractContexts(text.value),
         priority: undefined,
-        id: undefined
+        id: extractId(text.value)
       };
         })();
     }
@@ -143,7 +154,7 @@ export class IncompleteTodo {
         projects: extractProjects(text.value),
         contexts: extractContexts(text.value),
         completionDate: undefined,
-        id: undefined
+        id: extractId(text.value)
       };
         })();
     }
@@ -167,7 +178,7 @@ export class Date {
         this.mm = mm;
         this.dd = dd;
         this.value = ((): string => {
-        return `${this.yyyy}-${this.mm}-${dd}`;
+        return `${this.yyyy}-${this.mm}-${this.dd}`;
         })();
     }
 }
@@ -182,7 +193,7 @@ export class Priority {
         })();
     }
 }
-export type ws = [string, ...string[]];
+export type ws = string;
 export class RemainingText {
     public kind: ASTKinds.RemainingText = ASTKinds.RemainingText;
     public text: string;
@@ -324,7 +335,7 @@ export class Parser {
             });
     }
     public matchws($$dpth: number, $$cr?: ErrorTracker): Nullable<ws> {
-        return this.loopPlus<string>(() => this.regexAccept(String.raw`(?:[ \t])`, "", $$dpth + 1, $$cr));
+        return this.regexAccept(String.raw`(?:[ \t]+)`, "", $$dpth + 1, $$cr);
     }
     public matchRemainingText($$dpth: number, $$cr?: ErrorTracker): Nullable<RemainingText> {
         return this.run<RemainingText>($$dpth,
