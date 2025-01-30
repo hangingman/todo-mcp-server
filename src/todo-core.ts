@@ -4,30 +4,32 @@ import { v4 as uuidv4 } from "uuid";
 import { parse, Todo } from "./todo-parser.js";
 import { Logger } from "./logger.js";
 
-const TODO_FILE = process.env.TODO_FILE || path.join(
-    process.env.HOME || process.env.USERPROFILE || "",
-    "todo.txt"
-);
-
 const logger = Logger.getInstance();
 
 export class TodoCore {
+    private static getTodoFilePath(): string {
+        return process.env.TODO_FILE || path.join(
+            process.env.HOME || process.env.USERPROFILE || "",
+            "todo.txt"
+        );
+    }
+
     static setVerbose(verbose: boolean): void {
         logger.setVerbose(verbose);
     }
 
     static async init(): Promise<void> {
         try {
-            await fs.access(TODO_FILE);
+            await fs.access(this.getTodoFilePath());
             logger.info("Todo file already exists.");
         } catch {
-            await fs.writeFile(TODO_FILE, "");
+            await fs.writeFile(this.getTodoFilePath(), "");
             logger.info("Todo file created successfully.");
         }
     }
 
     static async clearFile(): Promise<void> {
-        await fs.writeFile(TODO_FILE, "");
+        await fs.writeFile(this.getTodoFilePath(), "");
         logger.debug("Todo file cleared successfully.");
     }
 
@@ -78,18 +80,18 @@ export class TodoCore {
         const todoString = formatTodoLine(todo);
         logger.debug(`Formatted todo line: ${todoString}`);
 
-        await fs.ensureFile(TODO_FILE);
-        const content = await fs.readFile(TODO_FILE, "utf-8");
+        await fs.ensureFile(this.getTodoFilePath());
+        const content = await fs.readFile(this.getTodoFilePath(), "utf-8");
         logger.debug(`Current file content: ${content}`);
 
-        await fs.writeFile(TODO_FILE, todoString + '\n' + content);
+        await fs.writeFile(this.getTodoFilePath(), todoString + '\n' + content);
         logger.debug(`File updated successfully`);
     }
 
     static async markTasksDone(ids: string[]): Promise<void> {
         logger.debug(`Attempting to mark tasks done with IDs: ${ids}`);
 
-        const content = await fs.readFile(TODO_FILE, "utf-8");
+        const content = await fs.readFile(this.getTodoFilePath(), "utf-8");
         logger.debug(`Current file content: ${content}`);
 
         const todos = content
@@ -110,8 +112,8 @@ export class TodoCore {
 
         const updatedTodos = todos.map((todo) => {
             if (ids.includes(todo.id ?? "")) {
-                const updatedTodo = { 
-                    ...todo, 
+                const updatedTodo = {
+                    ...todo,
                     completed: true,
                     completionDate: completionDate
                 };
@@ -124,12 +126,12 @@ export class TodoCore {
         const updatedContent = updatedTodos.map(formatTodoLine).join("\n");
         logger.debug(`Updated file content: ${updatedContent}`);
 
-        await fs.writeFile(TODO_FILE, updatedContent);
+        await fs.writeFile(this.getTodoFilePath(), updatedContent);
         logger.debug(`File updated successfully`);
     }
 
     static async listTasks(showCompleted = false): Promise<Todo[]> {
-        const content = await fs.readFile(TODO_FILE, "utf-8");
+        const content = await fs.readFile(this.getTodoFilePath(), "utf-8");
         const todos = content
             .split("\n")
             .filter((line) => line.trim() !== "")
@@ -141,7 +143,7 @@ export class TodoCore {
     static async deleteTasks(ids: string[]): Promise<void> {
         logger.debug(`Attempting to delete tasks with IDs: ${ids}`);
 
-        const content = await fs.readFile(TODO_FILE, "utf-8");
+        const content = await fs.readFile(this.getTodoFilePath(), "utf-8");
         const todos = content
             .split("\n")
             .filter((line) => line.trim() !== "")
@@ -155,14 +157,14 @@ export class TodoCore {
 
         const remainingTodos = todos.filter((todo) => !ids.includes(todo.id ?? ""));
         await fs.writeFile(
-            TODO_FILE,
+            this.getTodoFilePath(),
             remainingTodos.map(formatTodoLine).join("\n")
         );
         logger.debug("Tasks deleted successfully");
     }
 
     static async deleteAllTasks(): Promise<void> {
-        await fs.writeFile(TODO_FILE, "");
+        await fs.writeFile(this.getTodoFilePath(), "");
         logger.debug("All tasks deleted");
     }
 }
@@ -191,7 +193,7 @@ function formatTodoLine(todo: Todo): string {
     const projectPart = todo.projects.length > 0 ? ` ${todo.projects.map(p => `+${p}`).join(" ")}` : "";
     const contextPart = todo.contexts.length > 0 ? ` ${todo.contexts.map(c => `@${c}`).join(" ")}` : "";
 
-    return todo.completed 
+    return todo.completed
         ? `x ${completionDatePart}${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim()
         : `${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim();
 }
