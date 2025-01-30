@@ -1,0 +1,94 @@
+---
+
+export interface Todo {
+  completed: boolean;
+  completionDate?: string;
+  createdDate?: string;
+  priority?: string;
+  id?: string;
+  text: string;
+  task: string;
+  projects: string[];
+  contexts: string[];
+}
+
+function extractId(text: string): string {
+  const match = text.match(/(?:^|\s)id:([A-Za-z0-9-]+)/);
+  return match ? match[1] : '';
+}
+
+function extractProjects(text: string): string[] {
+  return (text.match(/\+(\S+)/g) || []).map(s => s.slice(1));
+}
+
+function extractContexts(text: string): string[] {
+  return (text.match(/@(\S+)/g) || []).map(s => s.slice(1));
+}
+
+function extractTask(text: string): string {
+  return text
+    .replace(/^x /g, '')              // チェックを除去
+    .replace(/\([A-Z]\) /g, '')       // 優先度を除去
+    .replace(/\+\S+/g, '')            // プロジェクトタグを除去
+    .replace(/@\S+/g, '')             // コンテキストタグを除去
+    .replace(/id:[A-Za-z0-9-]+/g, '') // IDを除去
+    .replace(/\d{4}-\d{2}-\d{2}/g, '') // 日付情報を除去
+    .replace(/\s+/g, ' ')             // 余分な空白を1つにまとめる
+    .trim();                          // 前後の空白を除去
+}
+---
+
+// todo.txt形式の仕様に関する重要な注意点:
+// 1. 完了タスク（CompletedTodo）は必ず"x "で始まり、その後に完了日付が続く
+// 2. 完了タスクでは優先度（priority）は存在しない。これはtodo.txt形式の仕様です
+// 3. 未完了タスク（IncompleteTodo）では優先度はオプショナル
+
+TodoLine
+  := CompletedTodo | IncompleteTodo
+
+CompletedTodo
+  := 'x ' ws? completionDate=Date ws? c={ createdDate=Date ws }? task=RemainingText
+    .value = Todo {
+      return {
+        completed: true,
+        completionDate: completionDate.value,
+        createdDate: c?.createdDate.value ? c.createdDate.value : undefined,
+        text: task.value,
+        task: extractTask(task.value),
+        projects: extractProjects(task.value),
+        contexts: extractContexts(task.value),
+        priority: undefined,
+        id: extractId(task.value)
+      };
+    }
+
+IncompleteTodo
+  := p={ priority=Priority ws }? c={ createdDate=Date ws }? task=RemainingText
+    .value = Todo {
+      return {
+        completed: false,
+        priority: p?.priority.p,
+        createdDate: c?.createdDate.value ? c.createdDate.value : undefined,
+        text: task.value,
+        task: extractTask(task.value),
+        projects: extractProjects(task.value),
+        contexts: extractContexts(task.value),
+        completionDate: undefined,
+        id: extractId(task.value)
+      };
+    }
+
+Date
+  := yyyy='[0-9][0-9][0-9][0-9]' '-' mm='[0-9][0-9]' '-' dd='[0-9][0-9]'
+    .value = string{ return `${this.yyyy}-${this.mm}-${this.dd}`; }
+
+Priority
+  := '\(' p='[A-Z]' '\)'
+    .value = string{ return this.p; }  // カッコを外して直接文字を返す
+
+ws
+  := '[ \t]+'
+
+RemainingText
+  := text='.*'
+    .value = string{ return this.text.trim(); }

@@ -13,14 +13,16 @@
     "scripts": {
         "start": "ts-node src/index.ts",
         "dev": "ts-node src/index.ts",
-        "dev:server": "node build/index.js",
-        "dev:cli": "node build/cli.js",
-        "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755') && require('fs').chmodSync('build/cli.js', '755')\"",
+        "dev:server": "node build/src/index.js",
+        "dev:cli": "node build/src/cli.js",
+        "build": "npm run tspeg && tsc && node -e \"require('fs').chmodSync('build/src/index.js', '755') && require('fs').chmodSync('build/src/cli.js', '755')\"",
+        "tspeg": "tspeg src/grammar.peg src/todo-parser.ts",
         "prepare": "npm run build",
         "watch": "tsc --watch",
-        "inspector": "npx @modelcontextprotocol/inspector build/index.js",
-        "todo": "node build/cli.js",
-        "cli": "node build/cli.js"
+        "inspector": "npx @modelcontextprotocol/inspector build/src/index.js",
+        "todo": "node build/src/cli.js",
+        "cli": "node build/src/cli.js",
+        "test": "mocha test/**/*.test.ts"
     },
     "keywords": [],
     "author": "Shumpei0111",
@@ -28,16 +30,22 @@
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.4.1",
         "@types/node": "^22.10.2",
+        "chai": "^5.1.2",
         "chalk": "^5.4.1",
         "commander": "^12.1.0",
         "fs-extra": "^11.2.0",
         "inquirer": "^12.3.0",
+        "mocha": "^11.1.0",
+        "tmp-promise": "^3.0.3",
+        "tspeg": "^3.3.2",
         "typescript": "^5.7.2",
         "uuid": "^11.0.3"
     },
     "devDependencies": {
+        "@types/chai": "^5.0.1",
         "@types/fs-extra": "^11.0.4",
         "@types/inquirer": "^9.0.7",
+        "@types/mocha": "^10.0.10",
         "@types/uuid": "^10.0.0",
         "ts-node": "^10.9.2"
     }
