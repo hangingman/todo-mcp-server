@@ -8,6 +8,7 @@ describe("Todo Parser", () => {
     const result = parse(input);
     expect(result.ast).not.to.be.null;
     expect(result.ast?.value.completed).to.be.true;
+    expect(result.ast?.value.task).to.equal('Complete the task');
   });
 
   it("should parse an incomplete todo", () => {
@@ -15,6 +16,7 @@ describe("Todo Parser", () => {
     const result = parse(input);
     expect(result.ast).not.to.be.null;
     expect(result.ast?.value.completed).to.be.false;
+    expect(result.ast?.value.task).to.equal('Start the task');
   });
 
   it("should parse an incomplete todo with priority", () => {
@@ -25,6 +27,7 @@ describe("Todo Parser", () => {
     expect(result.ast?.value.priority).to.equal("(B)");
     expect(result.ast?.value.projects).to.include("project3");
     expect(result.ast?.value.contexts).to.include("context3");
+    expect(result.ast?.value.task).to.equal('Start the task');
   });
 
   it("should parse a completed todo with projects and contexts", () => {
@@ -34,6 +37,7 @@ describe("Todo Parser", () => {
     expect(result.ast?.value.completed).to.be.true;
     expect(result.ast?.value.projects).to.include("project4");
     expect(result.ast?.value.contexts).to.include("context4");
+    expect(result.ast?.value.task).to.equal('Complete the task');
   });
 });
 

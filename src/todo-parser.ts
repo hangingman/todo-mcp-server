@@ -8,6 +8,7 @@
 *   priority?: string;
 *   id?: string;
 *   text: string;
+*   task: string;
 *   projects: string[];
 *   contexts: string[];
 * }
@@ -21,37 +22,46 @@
 * function extractContexts(text: string): string[] {
 *   return (text.match(/@(\S+)/g) || []).map(s => s.slice(1));
 * }
+* function extractTask(text: string): string {
+*   return text
+*     .replace(/^x /g, '')              // チェックを除去
+*     .replace(/\+\S+/g, '')            // プロジェクトタグを除去
+*     .replace(/@\S+/g, '')             // コンテキストタグを除去
+*     .replace(/id:[A-Za-z0-9-]+/g, '') // IDを除去
+*     .replace(/\s+/g, ' ')             // 余分な空白を1つにまとめる
+*     .trim();                          // 前後の空白を除去
+* }
 * ---
 * TodoLine
 *   := CompletedTodo | IncompleteTodo
-* // todo.txtの仕様では、完了済みタスクにはpriorityが含まれない
-* // そのため、priorityはundefinedとして処理する
 * CompletedTodo
-*   := 'x' ws+ completionDate=Date ws+ createdDate=Date ws+ text=RemainingText
+*   := 'x' ws completionDate=Date ws createdDate=Date ws task=RemainingText
 *     .value = Todo {
 *       return {
 *         completed: true,
 *         completionDate: completionDate.value,
 *         createdDate: createdDate.value,
-*         text: text.value,
-*         projects: extractProjects(text.value),
-*         contexts: extractContexts(text.value),
+*         text: task.value,
+*         task: extractTask(task.value),
+*         projects: extractProjects(task.value),
+*         contexts: extractContexts(task.value),
 *         priority: undefined,
-*         id: extractId(text.value)
+*         id: extractId(task.value)
 *       };
 *     }
 * IncompleteTodo
-*   := p={ priority=Priority ws+ }? c={ createdDate=Date ws+ }? text=RemainingText
+*   := p={ priority=Priority ws }? c={ createdDate=Date ws }? task=RemainingText
 *     .value = Todo {
 *       return {
 *         completed: false,
 *         priority: p?.priority.value,
 *         createdDate: c?.createdDate.value,
-*         text: text.value,
-*         projects: extractProjects(text.value),
-*         contexts: extractContexts(text.value),
+*         text: task.value,
+*         task: extractTask(task.value),
+*         projects: extractProjects(task.value),
+*         contexts: extractContexts(task.value),
 *         completionDate: undefined,
-*         id: extractId(text.value)
+*         id: extractId(task.value)
 *       };
 *     }
 * Date
@@ -74,6 +84,7 @@ export interface Todo {
   priority?: string;
   id?: string;
   text: string;
+  task: string;
   projects: string[];
   contexts: string[];
 }
@@ -89,6 +100,16 @@ function extractProjects(text: string): string[] {
 
 function extractContexts(text: string): string[] {
   return (text.match(/@(\S+)/g) || []).map(s => s.slice(1));
+}
+
+function extractTask(text: string): string {
+  return text
+    .replace(/^x /g, '')              // チェックを除去
+    .replace(/\+\S+/g, '')            // プロジェクトタグを除去
+    .replace(/@\S+/g, '')             // コンテキストタグを除去
+    .replace(/id:[A-Za-z0-9-]+/g, '') // IDを除去
+    .replace(/\s+/g, ' ')             // 余分な空白を1つにまとめる
+    .trim();                          // 前後の空白を除去
 }
 
 type Nullable<T> = T | null;
@@ -115,22 +136,23 @@ export class CompletedTodo {
     public kind: ASTKinds.CompletedTodo = ASTKinds.CompletedTodo;
     public completionDate: Date;
     public createdDate: Date;
-    public text: RemainingText;
+    public task: RemainingText;
     public value: Todo;
-    constructor(completionDate: Date, createdDate: Date, text: RemainingText){
+    constructor(completionDate: Date, createdDate: Date, task: RemainingText){
         this.completionDate = completionDate;
         this.createdDate = createdDate;
-        this.text = text;
+        this.task = task;
         this.value = ((): Todo => {
         return {
         completed: true,
         completionDate: completionDate.value,
         createdDate: createdDate.value,
-        text: text.value,
-        projects: extractProjects(text.value),
-        contexts: extractContexts(text.value),
+        text: task.value,
+        task: extractTask(task.value),
+        projects: extractProjects(task.value),
+        contexts: extractContexts(task.value),
         priority: undefined,
-        id: extractId(text.value)
+        id: extractId(task.value)
       };
         })();
     }
@@ -139,22 +161,23 @@ export class IncompleteTodo {
     public kind: ASTKinds.IncompleteTodo = ASTKinds.IncompleteTodo;
     public p: Nullable<IncompleteTodo_$0>;
     public c: Nullable<IncompleteTodo_$1>;
-    public text: RemainingText;
+    public task: RemainingText;
     public value: Todo;
-    constructor(p: Nullable<IncompleteTodo_$0>, c: Nullable<IncompleteTodo_$1>, text: RemainingText){
+    constructor(p: Nullable<IncompleteTodo_$0>, c: Nullable<IncompleteTodo_$1>, task: RemainingText){
         this.p = p;
         this.c = c;
-        this.text = text;
+        this.task = task;
         this.value = ((): Todo => {
         return {
         completed: false,
         priority: p?.priority.value,
         createdDate: c?.createdDate.value,
-        text: text.value,
-        projects: extractProjects(text.value),
-        contexts: extractContexts(text.value),
+        text: task.value,
+        task: extractTask(task.value),
+        projects: extractProjects(task.value),
+        contexts: extractContexts(task.value),
         completionDate: undefined,
-        id: extractId(text.value)
+        id: extractId(task.value)
       };
         })();
     }
@@ -239,18 +262,18 @@ export class Parser {
             () => {
                 let $scope$completionDate: Nullable<Date>;
                 let $scope$createdDate: Nullable<Date>;
-                let $scope$text: Nullable<RemainingText>;
+                let $scope$task: Nullable<RemainingText>;
                 let $$res: Nullable<CompletedTodo> = null;
                 if (true
                     && this.regexAccept(String.raw`(?:x)`, "", $$dpth + 1, $$cr) !== null
-                    && this.loopPlus<ws>(() => this.matchws($$dpth + 1, $$cr)) !== null
+                    && this.matchws($$dpth + 1, $$cr) !== null
                     && ($scope$completionDate = this.matchDate($$dpth + 1, $$cr)) !== null
-                    && this.loopPlus<ws>(() => this.matchws($$dpth + 1, $$cr)) !== null
+                    && this.matchws($$dpth + 1, $$cr) !== null
                     && ($scope$createdDate = this.matchDate($$dpth + 1, $$cr)) !== null
-                    && this.loopPlus<ws>(() => this.matchws($$dpth + 1, $$cr)) !== null
-                    && ($scope$text = this.matchRemainingText($$dpth + 1, $$cr)) !== null
+                    && this.matchws($$dpth + 1, $$cr) !== null
+                    && ($scope$task = this.matchRemainingText($$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = new CompletedTodo($scope$completionDate, $scope$createdDate, $scope$text);
+                    $$res = new CompletedTodo($scope$completionDate, $scope$createdDate, $scope$task);
                 }
                 return $$res;
             });
@@ -260,14 +283,14 @@ export class Parser {
             () => {
                 let $scope$p: Nullable<Nullable<IncompleteTodo_$0>>;
                 let $scope$c: Nullable<Nullable<IncompleteTodo_$1>>;
-                let $scope$text: Nullable<RemainingText>;
+                let $scope$task: Nullable<RemainingText>;
                 let $$res: Nullable<IncompleteTodo> = null;
                 if (true
                     && (($scope$p = this.matchIncompleteTodo_$0($$dpth + 1, $$cr)) || true)
                     && (($scope$c = this.matchIncompleteTodo_$1($$dpth + 1, $$cr)) || true)
-                    && ($scope$text = this.matchRemainingText($$dpth + 1, $$cr)) !== null
+                    && ($scope$task = this.matchRemainingText($$dpth + 1, $$cr)) !== null
                 ) {
-                    $$res = new IncompleteTodo($scope$p, $scope$c, $scope$text);
+                    $$res = new IncompleteTodo($scope$p, $scope$c, $scope$task);
                 }
                 return $$res;
             });
@@ -279,7 +302,7 @@ export class Parser {
                 let $$res: Nullable<IncompleteTodo_$0> = null;
                 if (true
                     && ($scope$priority = this.matchPriority($$dpth + 1, $$cr)) !== null
-                    && this.loopPlus<ws>(() => this.matchws($$dpth + 1, $$cr)) !== null
+                    && this.matchws($$dpth + 1, $$cr) !== null
                 ) {
                     $$res = {kind: ASTKinds.IncompleteTodo_$0, priority: $scope$priority};
                 }
@@ -293,7 +316,7 @@ export class Parser {
                 let $$res: Nullable<IncompleteTodo_$1> = null;
                 if (true
                     && ($scope$createdDate = this.matchDate($$dpth + 1, $$cr)) !== null
-                    && this.loopPlus<ws>(() => this.matchws($$dpth + 1, $$cr)) !== null
+                    && this.matchws($$dpth + 1, $$cr) !== null
                 ) {
                     $$res = {kind: ASTKinds.IncompleteTodo_$1, createdDate: $scope$createdDate};
                 }

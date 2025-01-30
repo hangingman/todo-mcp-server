@@ -6,6 +6,7 @@ export interface Todo {
   priority?: string;
   id?: string;
   text: string;
+  task: string;
   projects: string[];
   contexts: string[];
 }
@@ -22,40 +23,50 @@ function extractProjects(text: string): string[] {
 function extractContexts(text: string): string[] {
   return (text.match(/@(\S+)/g) || []).map(s => s.slice(1));
 }
+
+function extractTask(text: string): string {
+  return text
+    .replace(/^x /g, '')              // チェックを除去
+    .replace(/\+\S+/g, '')            // プロジェクトタグを除去
+    .replace(/@\S+/g, '')             // コンテキストタグを除去
+    .replace(/id:[A-Za-z0-9-]+/g, '') // IDを除去
+    .replace(/\s+/g, ' ')             // 余分な空白を1つにまとめる
+    .trim();                          // 前後の空白を除去
+}
 ---
 
 TodoLine
   := CompletedTodo | IncompleteTodo
 
-// todo.txtの仕様では、完了済みタスクにはpriorityが含まれない
-// そのため、priorityはundefinedとして処理する
 CompletedTodo
-  := 'x' ws+ completionDate=Date ws+ createdDate=Date ws+ text=RemainingText
+  := 'x' ws completionDate=Date ws createdDate=Date ws task=RemainingText
     .value = Todo {
       return {
         completed: true,
         completionDate: completionDate.value,
         createdDate: createdDate.value,
-        text: text.value,
-        projects: extractProjects(text.value),
-        contexts: extractContexts(text.value),
+        text: task.value,
+        task: extractTask(task.value),
+        projects: extractProjects(task.value),
+        contexts: extractContexts(task.value),
         priority: undefined,
-        id: extractId(text.value)
+        id: extractId(task.value)
       };
     }
 
 IncompleteTodo
-  := p={ priority=Priority ws+ }? c={ createdDate=Date ws+ }? text=RemainingText
+  := p={ priority=Priority ws }? c={ createdDate=Date ws }? task=RemainingText
     .value = Todo {
       return {
         completed: false,
         priority: p?.priority.value,
         createdDate: c?.createdDate.value,
-        text: text.value,
-        projects: extractProjects(text.value),
-        contexts: extractContexts(text.value),
+        text: task.value,
+        task: extractTask(task.value),
+        projects: extractProjects(task.value),
+        contexts: extractContexts(task.value),
         completionDate: undefined,
-        id: extractId(text.value)
+        id: extractId(task.value)
       };
     }
 
