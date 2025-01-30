@@ -58,7 +58,6 @@ describe("CLI Integration Tests", () => {
 
     it("should list all tasks correctly including completed ones", async () => {
         // 未完了タスクを追加
-        TodoCore.setVerbose(true);
         await TodoCore.addTask("Task 1", "A", undefined, undefined, "TEST-1");
         await TodoCore.addTask("Task 2", "B", undefined, undefined, "TEST-2");
 

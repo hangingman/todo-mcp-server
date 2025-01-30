@@ -1,5 +1,4 @@
 ---
-import { parseISO } from "date-fns";
 
 export interface Todo {
   completed: boolean;
@@ -53,7 +52,7 @@ CompletedTodo
       return {
         completed: true,
         completionDate: completionDate.value,
-        createdDate: c?.createdDate.value ? parseISO(c.createdDate.value).toISOString().split("T")[0] : undefined,
+        createdDate: c?.createdDate.value ? c.createdDate.value : undefined,
         text: task.value,
         task: extractTask(task.value),
         projects: extractProjects(task.value),
@@ -69,7 +68,7 @@ IncompleteTodo
       return {
         completed: false,
         priority: p?.priority.p,
-        createdDate: c?.createdDate.value ? parseISO(c.createdDate.value).toISOString().split("T")[0] : undefined,
+        createdDate: c?.createdDate.value ? c.createdDate.value : undefined,
         text: task.value,
         task: extractTask(task.value),
         projects: extractProjects(task.value),
