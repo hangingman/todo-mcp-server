@@ -54,7 +54,7 @@
 *     .value = Todo {
 *       return {
 *         completed: false,
-*         priority: p?.priority.value,
+*         priority: p?.priority.p,
 *         createdDate: c?.createdDate.value,
 *         text: task.value,
 *         task: extractTask(task.value),
@@ -69,7 +69,7 @@
 *     .value = string{ return `${this.yyyy}-${this.mm}-${this.dd}`; }
 * Priority
 *   := '\(' p='[A-Z]' '\)'
-*     .value = string{ return `(${this.p})`; }
+*     .value = string{ return this.p; }  // カッコを外して直接文字を返す
 * ws
 *   := '[ \t]+'
 * RemainingText
@@ -170,7 +170,7 @@ export class IncompleteTodo {
         this.value = ((): Todo => {
         return {
         completed: false,
-        priority: p?.priority.value,
+        priority: p?.priority.p,
         createdDate: c?.createdDate.value,
         text: task.value,
         task: extractTask(task.value),
@@ -212,7 +212,7 @@ export class Priority {
     constructor(p: string){
         this.p = p;
         this.value = ((): string => {
-        return `(${this.p})`;
+        return this.p;
         })();
     }
 }

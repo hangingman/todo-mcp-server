@@ -37,6 +37,7 @@
         "inquirer": "^12.3.0",
         "mocha": "^11.1.0",
         "tmp": "^0.2.3",
+        "tmp-promise": "^3.0.3",
         "tspeg": "^3.3.2",
         "typescript": "^5.7.2",
         "uuid": "^11.0.3"

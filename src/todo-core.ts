@@ -3,7 +3,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { parse, Todo } from "./todo-parser.js";
 
-const TODO_FILE = path.join(
+const TODO_FILE = process.env.TODO_FILE || path.join(
     process.env.HOME || process.env.USERPROFILE || "",
     "todo.txt"
 );
@@ -104,6 +104,8 @@ export class TodoCore {
 function parseTodoLine(line: string): Todo {
     try {
         const parsed = parse(line);
+        console.log("Parsing line:", line);
+        console.log("Parse result:", JSON.stringify(parsed, null, 2));
         return (
             parsed?.ast?.value ??
             (() => {
@@ -111,13 +113,20 @@ function parseTodoLine(line: string): Todo {
             })()
         );
     } catch (e) {
+        console.error("Parse error:", e);
         throw new Error(`Invalid todo line: ${line}`);
     }
 }
 
 function formatTodoLine(todo: Todo): string {
-    return `${todo.completed ? "x" : ""} ${todo.priority ? `(${todo.priority}) ` : ""
-        }${todo.task} ${todo.createdDate} id:${todo.id} ${todo.projects
-            .map((p) => `+${p}`)
-            .join(" ")} ${todo.contexts.map((c) => `@${c}`).join(" ")}`;
+    // 優先度のフォーマットを修正
+    const priorityPart = todo.priority ? `(${todo.priority}) ` : "";
+    const completedPart = todo.completed ? "x " : "";
+    const taskPart = todo.task;
+    const datePart = todo.createdDate ? `${todo.createdDate} ` : "";
+    const idPart = `id:${todo.id}`;
+    const projectPart = todo.projects.length > 0 ? ` ${todo.projects.map(p => `+${p}`).join(" ")}` : "";
+    const contextPart = todo.contexts.length > 0 ? ` ${todo.contexts.map(c => `@${c}`).join(" ")}` : "";
+
+    return `${completedPart}${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim();
 }

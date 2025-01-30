@@ -24,7 +24,7 @@ describe("Todo Parser", () => {
     const result = parse(input);
     expect(result.ast).not.to.be.null;
     expect(result.ast?.value.completed).to.be.false;
-    expect(result.ast?.value.priority).to.equal("(B)");
+    expect(result.ast?.value.priority).to.equal("B");
     expect(result.ast?.value.projects).to.include("project3");
     expect(result.ast?.value.contexts).to.include("context3");
     expect(result.ast?.value.task).to.equal('Start the task');
@@ -59,7 +59,7 @@ describe("Additional Todo Parser Tests", () => {
     const result = parse(input);
     expect(result.ast).not.to.be.null;
     expect(result.ast?.value.completed).to.be.false;
-    expect(result.ast?.value.priority).to.equal("(B)");
+    expect(result.ast?.value.priority).to.equal("B");
     expect(result.ast?.value.createdDate).to.equal("2023-01-01");
     expect(result.ast?.value.projects).to.include("personal");
     expect(result.ast?.value.contexts).to.include("home");

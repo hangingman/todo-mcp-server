@@ -59,7 +59,7 @@ IncompleteTodo
     .value = Todo {
       return {
         completed: false,
-        priority: p?.priority.value,
+        priority: p?.priority.p,
         createdDate: c?.createdDate.value,
         text: task.value,
         task: extractTask(task.value),
@@ -76,7 +76,7 @@ Date
 
 Priority
   := '\(' p='[A-Z]' '\)'
-    .value = string{ return `(${this.p})`; }
+    .value = string{ return this.p; }  // カッコを外して直接文字を返す
 
 ws
   := '[ \t]+'
