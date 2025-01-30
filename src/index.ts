@@ -52,6 +52,51 @@ class TodoServer {
         this.server.setRequestHandler(ListResourcesRequestSchema, async () => ({
             resources: [
                 {
+                    uri: "todo://tasks",
+                    name: "Todo Tasks",
+                    mimeType: "application/json",
+                    description: "List of all todo tasks",
+                },
+            ],
+        }));
+
+        this.server.setRequestHandler(
+            ReadResourceRequestSchema,
+            async (request) => {
+                if (request.params.uri !== "todo://tasks") {
+                    throw new McpError(
+                        ErrorCode.InvalidRequest,
+                        `Unknown resource: ${request.params.uri}`
+                    );
+                }
+
+                const todos = await TodoCore.listTasks({ showCompleted: true });
+                return {
+                    contents: [
+                        {
+                            uri: request.params.uri,
+                            mimeType: "application/json",
+                            text: JSON.stringify(todos, null, 2),
+                        },
+                    ],
+                };
+            }
+        );
+    }
+
+    private setupToolHandlers(): void {
+        this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+            tools: [
+                {
+                    name: "todo_init",
+                    description: "Initialize the todo file",
+                    inputSchema: {
+                        type: "object",
+                        properties: {},
+                        required: []
+                    }
+                },
+                {
                     name: "todo_bulk_add_tasks",
                     description: "Add multiple todo tasks in bulk",
                     inputSchema: {
@@ -97,51 +142,6 @@ class TodoServer {
                             }
                         },
                         required: ["tasks"]
-                    }
-                },
-                {
-                    uri: "todo://tasks",
-                    name: "Todo Tasks",
-                    mimeType: "application/json",
-                    description: "List of all todo tasks",
-                },
-            ],
-        }));
-
-        this.server.setRequestHandler(
-            ReadResourceRequestSchema,
-            async (request) => {
-                if (request.params.uri !== "todo://tasks") {
-                    throw new McpError(
-                        ErrorCode.InvalidRequest,
-                        `Unknown resource: ${request.params.uri}`
-                    );
-                }
-
-                const todos = await TodoCore.listTasks({ showCompleted: true });
-                return {
-                    contents: [
-                        {
-                            uri: request.params.uri,
-                            mimeType: "application/json",
-                            text: JSON.stringify(todos, null, 2),
-                        },
-                    ],
-                };
-            }
-        );
-    }
-
-    private setupToolHandlers(): void {
-        this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-            tools: [
-                {
-                    name: "todo_init",
-                    description: "Initialize the todo file",
-                    inputSchema: {
-                        type: "object",
-                        properties: {},
-                        required: []
                     }
                 },
                 {
@@ -257,14 +257,15 @@ class TodoServer {
 
         this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
             switch (request.params.name) {
-                case "todo_init":
-                    await TodoCore.init();
+                case "todo_init": {
+                    const message = await TodoCore.init();
                     return {
                         content: [{
                             type: "text",
-                            text: "Todo file initialized successfully"
+                            text: message
                         }]
                     };
+                }
 
                 case "todo_add_task": {
                     const { task, priority, projects, contexts, id, createdDate } = request.params.arguments as {

@@ -27,13 +27,13 @@ export class TodoCore {
         logger.setVerbose(isDebugMode || verbose);
     }
 
-    static async init(): Promise<void> {
+    static async init(): Promise<string> {
         try {
             await fs.access(this.getTodoFilePath());
-            logger.info("Todo file already exists.");
+            return "Todo file already exists.";
         } catch {
             await fs.writeFile(this.getTodoFilePath(), "");
-            logger.info("Todo file created successfully.");
+            return "Todo file created successfully.";
         }
     }
 
