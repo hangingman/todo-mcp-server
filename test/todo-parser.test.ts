@@ -55,12 +55,12 @@ describe("Additional Todo Parser Tests", () => {
   });
 
   it("should parse an incomplete todo with priority, projects, contexts, and ID", () => {
-    const input = "(B) 2023-01-01 Start new year resolution +personal @home id:NY2023";
+    const input = "(B) Start new year resolution +personal @home id:NY2023";
     const result = parse(input);
     expect(result.ast).not.to.be.null;
     expect(result.ast?.value.completed).to.be.false;
     expect(result.ast?.value.priority).to.equal("B");
-    expect(result.ast?.value.createdDate).to.equal("2023-01-01");
+    expect(result.ast?.value.createdDate).to.be.undefined;
     expect(result.ast?.value.projects).to.include("personal");
     expect(result.ast?.value.contexts).to.include("home");
     expect(result.ast?.value.id).to.equal("NY2023");

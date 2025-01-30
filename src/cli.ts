@@ -5,7 +5,14 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import { TodoCore } from "./todo-core.js";
 
-program.version("0.1.0").description("A simple CLI todo app");
+program
+    .version("0.1.0")
+    .description("A simple CLI todo app")
+    .option("-v, --verbose", "Enable verbose logging")
+    .hook('preAction', (thisCommand) => {
+        const opts = thisCommand.opts();
+        TodoCore.setVerbose(opts.verbose || false);
+    });
 
 program
     .command("init")

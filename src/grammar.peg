@@ -63,7 +63,7 @@ IncompleteTodo
       return {
         completed: false,
         priority: p?.priority.p,
-        createdDate: c?.createdDate.value ? parseISO(c.createdDate.value).toISOString().split("T")[0] : new global.Date().toISOString().split("T")[0],
+        createdDate: c?.createdDate.value ? parseISO(c.createdDate.value).toISOString().split("T")[0] : undefined,
         text: task.value,
         task: extractTask(task.value),
         projects: extractProjects(task.value),

@@ -2,27 +2,33 @@ import fs from "fs-extra";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { parse, Todo } from "./todo-parser.js";
+import { Logger } from "./logger.js";
 
 const TODO_FILE = process.env.TODO_FILE || path.join(
     process.env.HOME || process.env.USERPROFILE || "",
     "todo.txt"
 );
 
+const logger = Logger.getInstance();
+
 export class TodoCore {
+    static setVerbose(verbose: boolean): void {
+        logger.setVerbose(verbose);
+    }
+
     static async init(): Promise<void> {
         try {
             await fs.access(TODO_FILE);
-            console.log("Todo file already exists.");
+            logger.info("Todo file already exists.");
         } catch {
             await fs.writeFile(TODO_FILE, "");
-            console.log("Todo file created successfully.");
+            logger.info("Todo file created successfully.");
         }
     }
 
-    // ファイルの内容を完全にクリアするメソッドを追加
     static async clearFile(): Promise<void> {
         await fs.writeFile(TODO_FILE, "");
-        console.log("Todo file cleared successfully.");
+        logger.debug("Todo file cleared successfully.");
     }
 
     static async addTask(
@@ -32,6 +38,9 @@ export class TodoCore {
         context?: string,
         id?: string
     ): Promise<void> {
+        logger.debug(`Attempting to add task: ${task}`);
+        logger.debug(`Priority: ${priority}, Project: ${project}, Context: ${context}, ID: ${id}`);
+
         // 優先度のバリデーション
         if (priority && !/^[A-Z]$/.test(priority)) {
             throw new Error("Invalid priority");
@@ -52,10 +61,12 @@ export class TodoCore {
             .replace(/\s+/g, ' ')            // 余分な空白を1つにまとめる
             .trim();
 
+        const createdDate = new Date().toISOString().split("T")[0];
+
         const todo: Todo = {
             completed: false,
             completionDate: undefined,
-            createdDate: new Date().toISOString().split("T")[0],
+            createdDate: createdDate,
             priority: priority,
             id: id || uuidv4(),
             text: task,
@@ -65,18 +76,28 @@ export class TodoCore {
         };
 
         const todoString = formatTodoLine(todo);
+        logger.debug(`Formatted todo line: ${todoString}`);
 
         await fs.ensureFile(TODO_FILE);
         const content = await fs.readFile(TODO_FILE, "utf-8");
+        logger.debug(`Current file content: ${content}`);
+
         await fs.writeFile(TODO_FILE, todoString + '\n' + content);
+        logger.debug(`File updated successfully`);
     }
 
     static async markTasksDone(ids: string[]): Promise<void> {
+        logger.debug(`Attempting to mark tasks done with IDs: ${ids}`);
+
         const content = await fs.readFile(TODO_FILE, "utf-8");
+        logger.debug(`Current file content: ${content}`);
+
         const todos = content
             .split("\n")
             .filter((line) => line.trim() !== "")
             .map(parseTodoLine);
+
+        logger.debug("Parsed todos:", todos);
 
         // 指定されたIDのタスクが存在するかチェック
         const nonExistentIds = ids.filter(id => !todos.some(todo => todo.id === id));
@@ -84,14 +105,27 @@ export class TodoCore {
             throw new Error(`Task not found: ${nonExistentIds.join(", ")}`);
         }
 
+        const completionDate = new Date().toISOString().split("T")[0];
+        logger.debug(`Completion date: ${completionDate}`);
+
         const updatedTodos = todos.map((todo) => {
             if (ids.includes(todo.id ?? "")) {
-                return { ...todo, completed: true };
+                const updatedTodo = { 
+                    ...todo, 
+                    completed: true,
+                    completionDate: completionDate
+                };
+                logger.debug("Updated todo:", updatedTodo);
+                return updatedTodo;
             }
             return todo;
         });
 
-        await fs.writeFile(TODO_FILE, updatedTodos.map(formatTodoLine).join("\n"));
+        const updatedContent = updatedTodos.map(formatTodoLine).join("\n");
+        logger.debug(`Updated file content: ${updatedContent}`);
+
+        await fs.writeFile(TODO_FILE, updatedContent);
+        logger.debug(`File updated successfully`);
     }
 
     static async listTasks(showCompleted = false): Promise<Todo[]> {
@@ -105,6 +139,8 @@ export class TodoCore {
     }
 
     static async deleteTasks(ids: string[]): Promise<void> {
+        logger.debug(`Attempting to delete tasks with IDs: ${ids}`);
+
         const content = await fs.readFile(TODO_FILE, "utf-8");
         const todos = content
             .split("\n")
@@ -122,10 +158,12 @@ export class TodoCore {
             TODO_FILE,
             remainingTodos.map(formatTodoLine).join("\n")
         );
+        logger.debug("Tasks deleted successfully");
     }
 
     static async deleteAllTasks(): Promise<void> {
         await fs.writeFile(TODO_FILE, "");
+        logger.debug("All tasks deleted");
     }
 }
 
@@ -146,11 +184,14 @@ function parseTodoLine(line: string): Todo {
 function formatTodoLine(todo: Todo): string {
     const priorityPart = todo.priority ? `(${todo.priority}) ` : "";
     const completedPart = todo.completed ? "x " : "";
+    const completionDatePart = todo.completed && todo.completionDate ? `${todo.completionDate} ` : "";
     const taskPart = todo.task;
     const datePart = todo.createdDate ? `${todo.createdDate} ` : "";
     const idPart = `id:${todo.id}`;
     const projectPart = todo.projects.length > 0 ? ` ${todo.projects.map(p => `+${p}`).join(" ")}` : "";
     const contextPart = todo.contexts.length > 0 ? ` ${todo.contexts.map(c => `@${c}`).join(" ")}` : "";
 
-    return `${completedPart}${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim();
+    return todo.completed 
+        ? `x ${completionDatePart}${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim()
+        : `${priorityPart}${taskPart} ${datePart}${idPart}${projectPart}${contextPart}`.trim();
 }
