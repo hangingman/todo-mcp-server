@@ -73,7 +73,7 @@ program
     }
     todos.forEach((todo) =>
       console.log(
-        `${chalk.red("□")} ${
+        `${todo.completed ? chalk.green("✓") : chalk.red("□")} ${
           todo.priority ? chalk.yellow(`(${todo.priority}) `) : ""
         }${todo.text} ${chalk.gray(`(${todo.createdDate})`)} ${chalk.blue(
           `[${todo.id}]`
