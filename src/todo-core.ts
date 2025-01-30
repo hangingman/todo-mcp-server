@@ -78,6 +78,12 @@ export class TodoCore {
             .filter((line) => line.trim() !== "")
             .map(parseTodoLine);
 
+        // 指定されたIDのタスクが存在するかチェック
+        const nonExistentIds = ids.filter(id => !todos.some(todo => todo.id === id));
+        if (nonExistentIds.length > 0) {
+            throw new Error(`Task not found: ${nonExistentIds.join(", ")}`);
+        }
+
         const updatedTodos = todos.map((todo) => {
             if (ids.includes(todo.id ?? "")) {
                 return { ...todo, completed: true };
@@ -104,6 +110,12 @@ export class TodoCore {
             .split("\n")
             .filter((line) => line.trim() !== "")
             .map(parseTodoLine);
+
+        // 指定されたIDのタスクが存在するかチェック
+        const nonExistentIds = ids.filter(id => !todos.some(todo => todo.id === id));
+        if (nonExistentIds.length > 0) {
+            throw new Error(`Task not found: ${nonExistentIds.join(", ")}`);
+        }
 
         const remainingTodos = todos.filter((todo) => !ids.includes(todo.id ?? ""));
         await fs.writeFile(
