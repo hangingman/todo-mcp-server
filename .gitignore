@@ -1,5 +1,5 @@
 node_modules/
-build/
+dist/
 test/*.js
 test/*.js.map
 .aider.*

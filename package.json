@@ -5,7 +5,8 @@
     "private": true,
     "type": "module",
     "bin": {
-        "todo-mcp-server": "./build/src/index.js"
+        "todo-mcp-server": "dist/src/index.js",
+        "todo-cli": "dist/src/cli.js"
     },
     "files": [
         "build",
@@ -14,15 +15,15 @@
     "scripts": {
         "start": "ts-node src/index.ts",
         "dev": "ts-node src/index.ts",
-        "dev:server": "node build/src/index.js",
-        "dev:cli": "node build/src/cli.js",
-        "build": "npm run tspeg && tsc && node -e \"require('fs').chmodSync('build/src/index.js', '755') && require('fs').chmodSync('build/src/cli.js', '755')\"",
+        "dev:server": "node dist/src/index.js",
+        "dev:cli": "node dist/src/cli.js",
+        "build": "npm run tspeg && tsc && shx chmod +x dist/src/*.js",
         "tspeg": "tspeg src/grammar.peg src/todo-parser.ts",
         "prepare": "npm run build",
         "watch": "tsc --watch",
-        "inspector": "npx @modelcontextprotocol/inspector build/src/index.js",
-        "todo": "node build/src/cli.js",
-        "cli": "node build/src/cli.js",
+        "inspector": "npx @modelcontextprotocol/inspector distt/src/index.js",
+        "todo": "node dist/src/cli.js",
+        "cli": "node dist/src/cli.js",
         "test": "mocha test/**/*.test.ts"
     },
     "keywords": [],
@@ -48,6 +49,7 @@
         "@types/inquirer": "^9.0.7",
         "@types/mocha": "^10.0.10",
         "@types/uuid": "^10.0.0",
+        "shx": "^0.3.4",
         "ts-node": "^10.9.2"
     }
 }
