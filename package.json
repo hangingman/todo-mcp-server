@@ -9,15 +9,14 @@
         "todo-cli": "dist/src/cli.js"
     },
     "files": [
-        "build",
-        "build/src"
+        "dist/src"
     ],
     "scripts": {
         "start": "ts-node src/index.ts",
         "dev": "ts-node src/index.ts",
         "dev:server": "node dist/src/index.js",
         "dev:cli": "node dist/src/cli.js",
-        "build": "npm run tspeg && tsc && shx chmod +x dist/src/*.js",
+        "build": "npm run tspeg && tsc && shx chmod +x dist/**/*.js",
         "tspeg": "tspeg src/grammar.peg src/todo-parser.ts",
         "prepare": "npm run build",
         "watch": "tsc --watch",
